@@ -423,10 +423,9 @@ if __name__ == "__main__":
     end    = today
     halfway = start + timedelta(days=params["days"] // 2)
 
-    # UC-02: two problematic deploy dates
-    deploy1 = today - timedelta(days=random.randint(60, 90))
-    deploy2 = today - timedelta(days=random.randint(20, 50))
-    blast_dates = [deploy1, deploy2]
+    # UC-02: two problematic deploy dates — fixed to match v2.12.0 and v2.14.0 git tags
+    # Must match BLAST_DAYS_AGO in mock_git_repo.py
+    blast_dates = [today - timedelta(days=d) for d in (75, 35)]
 
     # UC-10: two anomalous dates
     anomaly_count_date    = today - timedelta(days=15)

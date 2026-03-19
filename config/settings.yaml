@@ -1,0 +1,11 @@
+duckdb:
+  path: data/perf_monitor.duckdb
+
+oracle:
+  # Production: set via env vars ORACLE_USER, ORACLE_PASSWORD, ORACLE_DSN
+  mock_db: data/mock_oracle.db
+
+git:
+  repos:
+    - path: data/mock_star_repo
+      name: star-app
