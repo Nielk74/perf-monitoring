@@ -1,0 +1,5 @@
+duckdb>=1.0
+# python-oracledb>=2.0  # production only, uncomment when connecting to real Oracle
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pyyaml>=6.0
