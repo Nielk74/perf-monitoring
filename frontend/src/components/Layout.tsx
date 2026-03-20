@@ -192,22 +192,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div>
             <h1 className="text-sm font-semibold text-primary">{current?.label ?? 'Overview'}</h1>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <a
-              href="http://localhost:8000/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-ghost text-xs"
-            >
-              <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="1.5" width="12" height="13" rx="1.5"/>
-                <line x1="5" y1="5.5" x2="11" y2="5.5"/>
-                <line x1="5" y1="8" x2="11" y2="8"/>
-                <line x1="5" y1="10.5" x2="9" y2="10.5"/>
-              </svg>
-              API Docs
-            </a>
-          </div>
         </header>
 
         {/* Page content */}
