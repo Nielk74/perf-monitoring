@@ -105,12 +105,17 @@ class OracleSource:
         return self._oracledb.connect(user=self.user, password=self.password, dsn=self.dsn)
 
     def _effective_range(self, high_water_mark: datetime, days_limit: int | None):
-        """Return (start_dt, end_dt) respecting HWM and days_limit."""
-        end_dt   = datetime.now(timezone.utc)
-        # Use NUMTODSINTERVAL-equivalent in Python so Oracle receives a proper
-        # TIMESTAMP bind variable — avoids implicit DATE cast on the indexed column.
-        cutoff   = end_dt - timedelta(days=days_limit or 365)
-        start_dt = max(high_water_mark, cutoff)
+        """Return (start_dt, end_dt) for the query window.
+
+        If --days is given it sets the start explicitly (ignores HWM) so that
+        dry-run counts and forced reloads reflect exactly the requested period.
+        Without --days, the HWM drives incremental imports as normal.
+        """
+        end_dt = datetime.now(timezone.utc)
+        if days_limit is not None:
+            start_dt = end_dt - timedelta(days=days_limit)
+        else:
+            start_dt = high_water_mark
         return start_dt, end_dt
 
     def _chunks(self, start_dt: datetime, end_dt: datetime):
