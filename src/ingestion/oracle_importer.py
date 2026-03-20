@@ -81,55 +81,83 @@ class SqliteSource:
         return n
 
 
+# Chunk size for Oracle range queries: one query per N days.
+# Keeps each query narrow enough to use an index range scan rather than
+# a full table scan; also makes the import restartable on failure.
+ORACLE_CHUNK_DAYS = 30
+
+
 class OracleSource:
     """Reads from the real Oracle STAR.STAR_ACTION_AUDIT (production)."""
 
-    def __init__(self, user: str, password: str, dsn: str):
+    def __init__(self, user: str, password: str, dsn: str, chunk_days: int = ORACLE_CHUNK_DAYS):
         try:
             import oracledb
         except ImportError:
             raise RuntimeError("python-oracledb is not installed. Run: pip install python-oracledb")
-        self._oracledb = oracledb
-        self.user = user
-        self.password = password
-        self.dsn = dsn
+        self._oracledb   = oracledb
+        self.user        = user
+        self.password    = password
+        self.dsn         = dsn
+        self.chunk_days  = chunk_days
 
     def _connect(self):
         return self._oracledb.connect(user=self.user, password=self.password, dsn=self.dsn)
 
+    def _effective_range(self, high_water_mark: datetime, days_limit: int | None):
+        """Return (start_dt, end_dt) respecting HWM and days_limit."""
+        end_dt   = datetime.now(timezone.utc)
+        # Use NUMTODSINTERVAL-equivalent in Python so Oracle receives a proper
+        # TIMESTAMP bind variable — avoids implicit DATE cast on the indexed column.
+        cutoff   = end_dt - timedelta(days=days_limit or 365)
+        start_dt = max(high_water_mark, cutoff)
+        return start_dt, end_dt
+
+    def _chunks(self, start_dt: datetime, end_dt: datetime):
+        """Yield (chunk_start, chunk_end) pairs of self.chunk_days each."""
+        chunk_start = start_dt
+        while chunk_start < end_dt:
+            chunk_end = min(chunk_start + timedelta(days=self.chunk_days), end_dt)
+            yield chunk_start, chunk_end
+            chunk_start = chunk_end
+
     def fetch(self, high_water_mark: datetime, days_limit: int | None) -> Iterator[dict]:
-        conn = self._connect()
-        cursor = conn.cursor()
-        cursor.arraysize = ORACLE_ARRAY_SIZE
-        cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
-        cursor.execute(f"""
-            SELECT SUPP_USER, ASMD_USER, WORKSTATION,
-                   CAST(MOD_DT AS TIMESTAMP) AS MOD_DT,
-                   FEATURE_TYPE, FEATURE, DETAIL, DURATION_MS
-            FROM STAR.STAR_ACTION_AUDIT
-            WHERE MOD_DT > :hwm
-              AND MOD_DT > {cutoff_expr}
-        """, hwm=high_water_mark)
+        start_dt, end_dt = self._effective_range(high_water_mark, days_limit)
+        chunks = list(self._chunks(start_dt, end_dt))
+        conn   = self._connect()
+        try:
+            for i, (chunk_start, chunk_end) in enumerate(chunks):
+                print(f"  chunk {i+1}/{len(chunks)}: {chunk_start.date()} → {chunk_end.date()}", end="\r")
+                cursor = conn.cursor()
+                cursor.arraysize = ORACLE_ARRAY_SIZE
+                cursor.execute("""
+                    SELECT SUPP_USER, ASMD_USER, WORKSTATION,
+                           CAST(MOD_DT AS TIMESTAMP) AS MOD_DT,
+                           FEATURE_TYPE, FEATURE, DETAIL, DURATION_MS
+                    FROM STAR.STAR_ACTION_AUDIT
+                    WHERE MOD_DT > :start_dt
+                      AND MOD_DT <= :end_dt
+                """, start_dt=chunk_start, end_dt=chunk_end)
 
-        cols = [c[0].lower() for c in cursor.description]
-        while True:
-            chunk = cursor.fetchmany()
-            if not chunk:
-                break
-            for row in chunk:
-                yield dict(zip(cols, row))
-
-        cursor.close()
-        conn.close()
+                cols = [c[0].lower() for c in cursor.description]
+                while True:
+                    chunk = cursor.fetchmany()
+                    if not chunk:
+                        break
+                    for row in chunk:
+                        yield dict(zip(cols, row))
+                cursor.close()
+        finally:
+            conn.close()
 
     def count(self, high_water_mark: datetime, days_limit: int | None) -> int:
-        conn = self._connect()
+        start_dt, end_dt = self._effective_range(high_water_mark, days_limit)
+        conn   = self._connect()
         cursor = conn.cursor()
-        cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
-        cursor.execute(f"""
+        cursor.execute("""
             SELECT COUNT(*) FROM STAR.STAR_ACTION_AUDIT
-            WHERE MOD_DT > :hwm AND MOD_DT > {cutoff_expr}
-        """, hwm=high_water_mark)
+            WHERE MOD_DT > :start_dt AND MOD_DT <= :end_dt
+        """, start_dt=start_dt, end_dt=end_dt)
         n = cursor.fetchone()[0]
         cursor.close()
         conn.close()
@@ -232,11 +260,12 @@ def run_import(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Import STAR_ACTION_AUDIT into DuckDB")
-    parser.add_argument("--days",    type=int,  default=None, help="Reload last N days (overrides high-water mark)")
-    parser.add_argument("--dry-run", action="store_true",     help="Count rows only, no write")
-    parser.add_argument("--mock",    action="store_true",     help="Force SQLite source (default when Oracle not configured)")
-    parser.add_argument("--mock-db", default=DEFAULT_MOCK_PATH, help=f"Path to SQLite mock DB (default: {DEFAULT_MOCK_PATH})")
-    parser.add_argument("--db",      default=None,            help="DuckDB path (default: data/perf_monitor.duckdb)")
+    parser.add_argument("--days",        type=int,  default=None, help="Reload last N days (overrides high-water mark)")
+    parser.add_argument("--chunk-days",  type=int,  default=None, help=f"Oracle query chunk size in days (default: {ORACLE_CHUNK_DAYS})")
+    parser.add_argument("--dry-run",     action="store_true",     help="Count rows only, no write")
+    parser.add_argument("--mock",        action="store_true",     help="Force SQLite source (default when Oracle not configured)")
+    parser.add_argument("--mock-db",     default=DEFAULT_MOCK_PATH, help=f"Path to SQLite mock DB (default: {DEFAULT_MOCK_PATH})")
+    parser.add_argument("--db",          default=None,            help="DuckDB path (default: data/perf_monitor.duckdb)")
     args = parser.parse_args()
 
     duckdb_conn = get_connection(args.db) if args.db else get_connection()
@@ -251,7 +280,8 @@ if __name__ == "__main__":
 
     if oracle_dsn and not args.mock:
         print(f"Source: Oracle ({oracle_dsn})")
-        source = OracleSource(oracle_user, oracle_pass, oracle_dsn)
+        source = OracleSource(oracle_user, oracle_pass, oracle_dsn,
+                              chunk_days=args.chunk_days or ORACLE_CHUNK_DAYS)
     else:
         print(f"Source: SQLite mock ({args.mock_db})")
         source = SqliteSource(args.mock_db)
