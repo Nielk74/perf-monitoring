@@ -99,7 +99,7 @@ class OracleSource:
     def fetch(self, high_water_mark: datetime, days_limit: int | None) -> Iterator[dict]:
         conn = self._connect()
         cursor = conn.cursor()
-        cutoff_expr = f"SYSTIMESTAMP - INTERVAL '{days_limit}' DAY" if days_limit else "SYSTIMESTAMP - INTERVAL '365' DAY"
+        cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
         cursor.execute(f"""
             SELECT SUPP_USER, ASMD_USER, WORKSTATION, MOD_DT,
                    FEATURE_TYPE, FEATURE, DETAIL, DURATION_MS
@@ -119,7 +119,7 @@ class OracleSource:
     def count(self, high_water_mark: datetime, days_limit: int | None) -> int:
         conn = self._connect()
         cursor = conn.cursor()
-        cutoff_expr = f"SYSTIMESTAMP - INTERVAL '{days_limit}' DAY" if days_limit else "SYSTIMESTAMP - INTERVAL '365' DAY"
+        cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
         cursor.execute(f"""
             SELECT COUNT(*) FROM STAR.STAR_ACTION_AUDIT
             WHERE MOD_DT > :hwm AND MOD_DT > {cutoff_expr}
