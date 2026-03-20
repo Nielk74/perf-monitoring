@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body, #root {
+    height: 100%;
+    background: #0a0b0e;
+    color: #e8eaf0;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2d3244; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d4560; }
+
+  /* Selection */
+  ::selection { background: rgba(34,211,238,0.2); color: #e8eaf0; }
+}
+
+@layer components {
+  .card {
+    @apply bg-raised rounded-lg border border-border shadow-card;
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium
+           transition-colors duration-150 cursor-pointer border border-transparent;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-canvas hover:bg-cyan-300;
+  }
+  .btn-ghost {
+    @apply btn text-secondary hover:text-primary hover:bg-raised border-border;
+  }
+  .btn-danger {
+    @apply btn bg-down/10 text-down border-down/20 hover:bg-down/20;
+  }
+
+  .select {
+    @apply bg-surface border border-border rounded px-3 py-1.5 text-sm text-primary
+           focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50
+           transition-colors duration-150;
+  }
+
+  .input {
+    @apply bg-surface border border-border rounded px-3 py-1.5 text-sm text-primary
+           placeholder-secondary focus:outline-none focus:ring-1 focus:ring-accent/50
+           focus:border-accent/50 transition-colors duration-150;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-up   { @apply badge bg-up/10 text-up; }
+  .badge-down { @apply badge bg-down/10 text-down; }
+  .badge-warn { @apply badge bg-warn/10 text-warn; }
+  .badge-muted { @apply badge bg-muted/40 text-secondary; }
+
+  .table-row-hover { @apply hover:bg-raised/60 transition-colors duration-100; }
+
+  .label { @apply text-xs font-medium text-secondary uppercase tracking-wider; }
+
+  .metric-value { @apply text-2xl font-semibold text-primary tracking-tight; }
+  .metric-label { @apply text-xs text-secondary mt-0.5; }
+}
