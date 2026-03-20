@@ -21,7 +21,7 @@ export default function FrictionHeatmap() {
 
   const barOption = data && {
     grid: { top: 8, right: 80, bottom: 8, left: 8, containLabel: true },
-    xAxis: { type: 'value' as const, name: 'Hours', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    xAxis: { type: 'value' as const, name: 'Hours', nameTextStyle: { color: '#737373', fontSize: 11 } },
     yAxis: { type: 'category' as const, data: [...data.data].reverse().map(d => d.feature), axisLabel: { fontSize: 11 } },
     series: [{
       type: 'bar' as const,
@@ -30,7 +30,7 @@ export default function FrictionHeatmap() {
         itemStyle: { color: `rgba(248,113,113,${0.3 + (d.friction_score ?? 0) * 0.7})` },
       })),
       barMaxWidth: 24,
-      label: { show: true, position: 'right' as const, formatter: (p: { value: number }) => `${p.value.toFixed(1)}h`, color: '#6b7280', fontSize: 10 },
+      label: { show: true, position: 'right' as const, formatter: (p: { value: number }) => `${p.value.toFixed(1)}h`, color: '#737373', fontSize: 10 },
     }],
     tooltip: { trigger: 'axis' as const, formatter: (p: unknown[]) => {
       const pt = (p as { name: string; value: number }[])[0]
@@ -42,14 +42,14 @@ export default function FrictionHeatmap() {
     grid: { top: 12, right: 8, bottom: 36, left: 52 },
     xAxis: { type: 'category' as const, data: hourly.data.map((d: { hour_utc: number }) => `${d.hour_utc}:00`) },
     yAxis: [
-      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
-      { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#737373', fontSize: 11 } },
+      { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#737373', fontSize: 11 } },
     ],
     series: [
-      { name: 'Event count', type: 'bar' as const, data: hourly.data.map((d: { event_count: number }) => d.event_count), itemStyle: { color: '#22d3ee', opacity: 0.6 }, barMaxWidth: 20, yAxisIndex: 0 },
-      { name: 'avg ms', type: 'line' as const, data: hourly.data.map((d: { avg_ms: number }) => d.avg_ms), lineStyle: { color: '#f87171' }, itemStyle: { color: '#f87171' }, showSymbol: false, smooth: true, yAxisIndex: 1 },
+      { name: 'Event count', type: 'bar' as const, data: hourly.data.map((d: { event_count: number }) => d.event_count), itemStyle: { color: '#6366f1', opacity: 0.6 }, barMaxWidth: 20, yAxisIndex: 0 },
+      { name: 'avg ms', type: 'line' as const, data: hourly.data.map((d: { avg_ms: number }) => d.avg_ms), lineStyle: { color: '#ef4444' }, itemStyle: { color: '#ef4444' }, showSymbol: false, smooth: true, yAxisIndex: 1 },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 

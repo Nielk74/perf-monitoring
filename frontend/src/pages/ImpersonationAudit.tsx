@@ -23,11 +23,11 @@ export default function ImpersonationAudit() {
   const timelineOption = {
     grid: { top: 8, right: 8, bottom: 36, left: 52 },
     xAxis: { type: 'category' as const, data: timeline?.data.map((d: Record<string, unknown>) => String(d.day ?? '').slice(5)) ?? [] },
-    yAxis: { type: 'value' as const, name: 'Sessions', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'Sessions', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: [{
       type: 'bar' as const,
       data: timeline?.data.map((d: Record<string, unknown>) => d.session_count) ?? [],
-      itemStyle: { color: '#818cf8', opacity: 0.8 },
+      itemStyle: { color: '#6366f1', opacity: 0.8 },
     }],
     tooltip: { trigger: 'axis' as const },
   }
@@ -37,10 +37,10 @@ export default function ImpersonationAudit() {
     xAxis: { type: 'value' as const },
     yAxis: { type: 'category' as const, data: [...agents.data].reverse().map(a => a.supp_user) },
     series: [
-      { name: 'Sessions', type: 'bar' as const, data: [...agents.data].reverse().map(a => a.session_count), itemStyle: { color: '#818cf8' }, barMaxWidth: 20 },
-      { name: 'Users helped', type: 'bar' as const, data: [...agents.data].reverse().map(a => a.distinct_users_helped), itemStyle: { color: '#22d3ee' }, barMaxWidth: 20 },
+      { name: 'Sessions', type: 'bar' as const, data: [...agents.data].reverse().map(a => a.session_count), itemStyle: { color: '#6366f1' }, barMaxWidth: 20 },
+      { name: 'Users helped', type: 'bar' as const, data: [...agents.data].reverse().map(a => a.distinct_users_helped), itemStyle: { color: '#22c55e' }, barMaxWidth: 20 },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 

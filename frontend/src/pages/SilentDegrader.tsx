@@ -23,12 +23,12 @@ export default function SilentDegrader() {
   const trendOption = {
     grid: { top: 12, right: 8, bottom: 36, left: 52 },
     xAxis: { type: 'category' as const, data: trend?.data.map((d: Record<string, unknown>) => String(d.stat_date ?? '').slice(5)) ?? [] },
-    yAxis: { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: [
-      { name: 'avg', type: 'line' as const, data: trend?.data.map((d: Record<string, unknown>) => d.avg_ms as number), smooth: true, lineStyle: { color: '#22d3ee' }, itemStyle: { color: '#22d3ee' }, showSymbol: false },
-      { name: 'p95', type: 'line' as const, data: trend?.data.map((d: Record<string, unknown>) => d.p95_ms as number), smooth: true, lineStyle: { color: '#f87171', type: 'dashed' }, itemStyle: { color: '#f87171' }, showSymbol: false },
+      { name: 'avg', type: 'line' as const, data: trend?.data.map((d: Record<string, unknown>) => d.avg_ms as number), smooth: true, lineStyle: { color: '#6366f1' }, itemStyle: { color: '#6366f1' }, showSymbol: false },
+      { name: 'p95', type: 'line' as const, data: trend?.data.map((d: Record<string, unknown>) => d.p95_ms as number), smooth: true, lineStyle: { color: '#ef4444', type: 'dashed' }, itemStyle: { color: '#ef4444' }, showSymbol: false },
     ],
-    legend: { data: ['avg', 'p95'], bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { data: ['avg', 'p95'], bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 
@@ -40,7 +40,7 @@ export default function SilentDegrader() {
       type: 'bar' as const,
       data: [...(data.data ?? [])].reverse().map(d => ({
         value: d.weekly_slope_pct,
-        itemStyle: { color: d.weekly_slope_pct > 5 ? '#f87171' : d.weekly_slope_pct > 2 ? '#fbbf24' : '#22d3ee' },
+        itemStyle: { color: d.weekly_slope_pct > 5 ? '#ef4444' : d.weekly_slope_pct > 2 ? '#f59e0b' : '#6366f1' },
       })),
       barMaxWidth: 28,
     }],

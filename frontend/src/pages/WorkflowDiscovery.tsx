@@ -24,14 +24,70 @@ export default function WorkflowDiscovery() {
 
   // Build Sankey
   const sankyOption = data && data.data.length > 0 && (() => {
-    const nodeSet = new Set<string>()
-    data.data.forEach(e => { nodeSet.add(e.from_feature); nodeSet.add(e.to_feature) })
-    const nodes = [...nodeSet].map(n => ({ name: n }))
-    const links = data.data.slice(0, 40).map(e => ({
-      source: e.from_feature,
-      target: e.to_feature,
-      value: e.transition_count,
-    }))
+    // Step 1: deduplicate bidirectional pairs (keep higher-count direction)
+    const edgeMap = new Map<string, { source: string; target: string; value: number }>()
+    data.data
+      .filter(e => e.from_feature !== e.to_feature)
+      .slice(0, 80)
+      .forEach(e => {
+        const key = [e.from_feature, e.to_feature].sort().join('||')
+        const existing = edgeMap.get(key)
+        if (!existing || e.transition_count > existing.value) {
+          edgeMap.set(key, { source: e.from_feature, target: e.to_feature, value: e.transition_count })
+        }
+      })
+    const allEdges = [...edgeMap.values()]
+
+    // Step 2: Kahn's topological sort with cycle-breaking — assigns ALL nodes to an order
+    const nodeNames = [...new Set(allEdges.flatMap(e => [e.source, e.target]))]
+    const outWeight = new Map<string, number>()
+    allEdges.forEach(e => outWeight.set(e.source, (outWeight.get(e.source) ?? 0) + e.value))
+    const inDegree = new Map<string, number>(nodeNames.map(n => [n, 0]))
+    const adj = new Map<string, string[]>(nodeNames.map(n => [n, []]))
+    allEdges.forEach(e => {
+      adj.get(e.source)!.push(e.target)
+      inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1)
+    })
+    const topoOrder = new Map<string, number>()
+    const runKahn = (queue: string[]) => {
+      while (queue.length) {
+        const node = queue.shift()!
+        if (topoOrder.has(node)) continue
+        topoOrder.set(node, topoOrder.size)
+        for (const nbr of (adj.get(node) ?? [])) {
+          const d = (inDegree.get(nbr) ?? 0) - 1
+          inDegree.set(nbr, d)
+          if (d === 0 && !topoOrder.has(nbr)) queue.push(nbr)
+        }
+      }
+    }
+    // Initial pass
+    const seed: string[] = []
+    inDegree.forEach((deg, node) => { if (deg === 0) seed.push(node) })
+    runKahn(seed)
+    // Break remaining cycles: forcibly pick the highest-outflow unresolved node
+    while (topoOrder.size < nodeNames.length) {
+      const remaining = nodeNames.filter(n => !topoOrder.has(n))
+      const breaker = remaining.reduce((best, n) =>
+        (outWeight.get(n) ?? 0) > (outWeight.get(best) ?? 0) ? n : best
+      )
+      topoOrder.set(breaker, topoOrder.size)
+      const next: string[] = []
+      for (const nbr of (adj.get(breaker) ?? [])) {
+        const d = (inDegree.get(nbr) ?? 0) - 1
+        inDegree.set(nbr, d)
+        if (d === 0 && !topoOrder.has(nbr)) next.push(nbr)
+      }
+      runKahn(next)
+    }
+
+    // Only keep forward edges (source ranked before target) — guarantees DAG
+    const links = allEdges.filter(e =>
+      topoOrder.get(e.source)! < topoOrder.get(e.target)!
+    )
+    const nodeSet2 = new Set<string>()
+    links.forEach(l => { nodeSet2.add(l.source); nodeSet2.add(l.target) })
+    const nodes = [...nodeSet2].map(n => ({ name: n }))
     return {
       series: [{
         type: 'sankey' as const,
@@ -39,8 +95,8 @@ export default function WorkflowDiscovery() {
         links,
         emphasis: { focus: 'adjacency' as const },
         lineStyle: { color: 'gradient' as const, opacity: 0.4 },
-        itemStyle: { color: '#22d3ee', borderColor: '#22d3ee' },
-        label: { color: '#e8eaf0', fontSize: 11 },
+        itemStyle: { color: '#6366f1', borderColor: '#6366f1' },
+        label: { color: '#1a1a1a', fontSize: 11 },
         nodeGap: 12,
         nodeWidth: 16,
       }],
@@ -53,8 +109,8 @@ export default function WorkflowDiscovery() {
 
   // Gantt
   const COLORS: Record<string, string> = {
-    'Trade Entry': '#22d3ee', 'Reporting': '#818cf8', 'Search': '#34d399',
-    'Configuration': '#fbbf24', 'Startup': '#fb923c', 'Market Data': '#f472b6',
+    'Trade Entry': '#6366f1', 'Reporting': '#8b5cf6', 'Search': '#22c55e',
+    'Configuration': '#f59e0b', 'Startup': '#f97316', 'Market Data': '#ec4899',
   }
   const ganttFeatures = [...new Set((gantt?.data ?? []).map((d: Record<string, unknown>) => String(d.feature)))]
   const ganttOption = gantt && gantt.data.length > 0 && {
@@ -68,7 +124,7 @@ export default function WorkflowDiscovery() {
         .filter(d => d.feature === feat)
         .map(d => [new Date(String(d.mod_dt)).getTime(), feat, d.duration_ms as number]),
       symbolSize: (val: unknown[]) => Math.min(Math.max(((val as [number, string, number])[2] ?? 0) / 20, 4), 18),
-      itemStyle: { color: COLORS[feat] ?? '#6b7280', opacity: 0.8 },
+      itemStyle: { color: COLORS[feat] ?? '#737373', opacity: 0.8 },
     })),
     tooltip: { trigger: 'item' as const, formatter: (p: { seriesName: string; value: [number, string, number] }) =>
       `<b>${p.seriesName}</b><br/>Time: ${new Date(p.value[0]).toTimeString().slice(0, 8)}<br/>Duration: ${p.value[2]?.toFixed(0) ?? '—'} ms`

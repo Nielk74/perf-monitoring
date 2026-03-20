@@ -28,9 +28,9 @@ export default function FeatureSunset() {
     yAxis: { type: 'category' as const, data: [...data.data].reverse().map(d => d.feature), axisLabel: { fontSize: 11 } },
     series: [{
       type: 'bar' as const,
-      data: [...data.data].reverse().map(d => ({ value: +d.decline_pct.toFixed(1), itemStyle: { color: '#f87171' } })),
+      data: [...data.data].reverse().map(d => ({ value: +d.decline_pct.toFixed(1), itemStyle: { color: '#ef4444' } })),
       barMaxWidth: 24,
-      label: { show: true, position: 'right' as const, formatter: (p: { value: number }) => `${p.value.toFixed(0)}%`, color: '#6b7280', fontSize: 10 },
+      label: { show: true, position: 'right' as const, formatter: (p: { value: number }) => `${p.value.toFixed(0)}%`, color: '#737373', fontSize: 10 },
     }],
     tooltip: { trigger: 'axis' as const, formatter: (p: unknown[]) => {
       const pt = (p as { name: string; value: number }[])[0]
@@ -41,11 +41,11 @@ export default function FeatureSunset() {
   const trendOption = trend && {
     grid: { top: 12, right: 8, bottom: 28, left: 48 },
     xAxis: { type: 'category' as const, data: trend.data.map((d: Record<string, unknown>) => String(d.stat_date ?? '').slice(5)) },
-    yAxis: { type: 'value' as const, name: 'Events/day', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'Events/day', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: [{
       type: 'line' as const, smooth: true, showSymbol: false,
       data: trend.data.map((d: Record<string, unknown>) => d.event_count as number),
-      lineStyle: { color: '#f87171' }, areaStyle: { color: 'rgba(248,113,113,0.08)' }, itemStyle: { color: '#f87171' },
+      lineStyle: { color: '#ef4444' }, areaStyle: { color: 'rgba(239,68,68,0.06)' }, itemStyle: { color: '#ef4444' },
     }],
     tooltip: { trigger: 'axis' as const },
   }

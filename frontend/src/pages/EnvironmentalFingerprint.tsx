@@ -6,7 +6,7 @@ import Chart from '../components/Chart'
 import { PageSpinner } from '../components/Spinner'
 import ErrorBanner from '../components/ErrorBanner'
 
-const OFFICE_COLORS: Record<string, string> = { LON: '#22d3ee', NYC: '#818cf8', SIN: '#34d399' }
+const OFFICE_COLORS: Record<string, string> = { LON: '#6366f1', NYC: '#f97316', SIN: '#22c55e' }
 
 export default function EnvironmentalFingerprint() {
   const [days, setDays] = useState(30)
@@ -34,15 +34,15 @@ export default function EnvironmentalFingerprint() {
   const barOption = {
     grid: { top: 8, right: 8, bottom: 40, left: 8, containLabel: true },
     xAxis: { type: 'category' as const, data: features, axisLabel: { rotate: 30, fontSize: 10, interval: 0 } },
-    yAxis: { type: 'value' as const, name: 'avg ms', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'avg ms', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: offices.map(office => ({
       name: office,
       type: 'bar' as const,
       data: pivoted.map(p => (p[office] as number) ?? null),
-      itemStyle: { color: OFFICE_COLORS[office] ?? '#818cf8' },
+      itemStyle: { color: OFFICE_COLORS[office] ?? '#6366f1' },
       barMaxWidth: 24,
     })),
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 
@@ -97,7 +97,7 @@ export default function EnvironmentalFingerprint() {
                       <td className="py-2 pr-4 text-primary font-medium">{row.feature}</td>
                       <td className="py-2 pr-4 text-secondary text-xs">{row.feature_type}</td>
                       <td className="py-2 pr-4">
-                        <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ color: OFFICE_COLORS[row.office_prefix] ?? '#6b7280', background: `${OFFICE_COLORS[row.office_prefix] ?? '#6b7280'}18` }}>
+                        <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ color: OFFICE_COLORS[row.office_prefix] ?? '#737373', background: `${OFFICE_COLORS[row.office_prefix] ?? '#737373'}18` }}>
                           {row.office_prefix}
                         </span>
                       </td>

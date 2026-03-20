@@ -6,35 +6,48 @@ import * as echarts from 'echarts'
 import './index.css'
 import App from './App'
 
-// Register ECharts dark theme
+// Register ECharts light theme
 echarts.registerTheme('star', {
   backgroundColor: 'transparent',
-  color: ['#22d3ee', '#818cf8', '#34d399', '#fb923c', '#a78bfa', '#f472b6', '#fbbf24', '#60a5fa'],
-  textStyle: { color: '#6b7280', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12 },
-  title: { textStyle: { color: '#e8eaf0', fontWeight: '500' } },
-  legend: { textStyle: { color: '#6b7280' }, pageTextStyle: { color: '#6b7280' } },
+  color: ['#6366f1', '#22c55e', '#f97316', '#8b5cf6', '#ec4899', '#f59e0b', '#3b82f6', '#0ea5e9'],
+  textStyle: { color: '#737373', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12 },
+  title: { textStyle: { color: '#1a1a1a', fontWeight: '500' } },
+  legend: { textStyle: { color: '#737373' }, pageTextStyle: { color: '#737373' } },
   tooltip: {
-    backgroundColor: '#181c23',
-    borderColor: '#1f2330',
+    backgroundColor: '#ffffff',
+    borderColor: '#e5e5e5',
     borderWidth: 1,
-    textStyle: { color: '#e8eaf0', fontSize: 12 },
-    extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.5); border-radius: 6px;',
+    textStyle: { color: '#1a1a1a', fontSize: 12 },
+    extraCssText: 'box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px; padding: 10px 14px;',
   },
-  axisPointer: { lineStyle: { color: '#2d3244' }, crossStyle: { color: '#2d3244' } },
+  axisPointer: { lineStyle: { color: '#e5e5e5' }, crossStyle: { color: '#e5e5e5' } },
   categoryAxis: {
-    axisLine:  { lineStyle: { color: '#1f2330' } },
+    axisLine:  { lineStyle: { color: '#e5e5e5' } },
     axisTick:  { show: false },
-    axisLabel: { color: '#6b7280', fontSize: 11 },
-    splitLine: { lineStyle: { color: '#1f2330', type: 'dashed' } },
+    axisLabel: { color: '#737373', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#f5f5f5', type: 'dashed' } },
+    splitArea: { show: false },
   },
   valueAxis: {
     axisLine:  { show: false },
     axisTick:  { show: false },
-    axisLabel: { color: '#6b7280', fontSize: 11 },
-    splitLine: { lineStyle: { color: '#1f2330', type: 'dashed' } },
+    axisLabel: { color: '#737373', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#f5f5f5', type: 'dashed' } },
+    splitArea: { show: false },
+  },
+  timeAxis: {
+    axisLine:  { lineStyle: { color: '#e5e5e5' } },
+    axisTick:  { show: false },
+    axisLabel: { color: '#737373', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#f5f5f5', type: 'dashed' } },
   },
   line: { smooth: false, symbolSize: 4 },
   bar:  { barMaxWidth: 40, itemStyle: { borderRadius: [3, 3, 0, 0] } },
+  sankey: {
+    itemStyle: { borderWidth: 0 },
+    label: { color: '#737373', fontSize: 11 },
+    lineStyle: { opacity: 0.3 },
+  },
 })
 
 const qc = new QueryClient({

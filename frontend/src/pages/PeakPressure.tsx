@@ -44,14 +44,14 @@ export default function PeakPressure() {
       orient: 'horizontal' as const,
       bottom: 0,
       left: 'center',
-      inRange: { color: ['#111318', '#0e7490', '#22d3ee'] },
-      textStyle: { color: '#6b7280', fontSize: 10 },
+      inRange: { color: ['#f5f3ff', '#a5b4fc', '#4f46e5'] },
+      textStyle: { color: '#737373', fontSize: 10 },
     },
     series: [{
       type: 'heatmap' as const,
       data: heatData,
       label: { show: false },
-      emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,211,238,0.4)' } },
+      emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(99,102,241,0.3)' } },
     }],
     tooltip: { trigger: 'item' as const, formatter: (p: { value: [number, number, number] }) =>
       `<b>${DAYS[p.value[1]]} ${p.value[0]}:00</b><br/>Events: ${p.value[2]}`
@@ -62,25 +62,25 @@ export default function PeakPressure() {
     grid: { top: 12, right: 8, bottom: 36, left: 52 },
     xAxis: { type: 'category' as const, data: daily.data.map(d => String(d.stat_date).slice(5)), axisLabel: { interval: 6 } },
     yAxis: [
-      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
-      { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#737373', fontSize: 11 } },
+      { type: 'value' as const, name: 'ms', nameTextStyle: { color: '#737373', fontSize: 11 } },
     ],
     series: [
-      { name: 'Events', type: 'bar' as const, data: daily.data.map(d => d.total_events), itemStyle: { color: '#22d3ee', opacity: 0.5 }, barMaxWidth: 16, yAxisIndex: 0 },
-      { name: 'p95 ms', type: 'line' as const, data: daily.data.map(d => d.avg_p95_ms), lineStyle: { color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, showSymbol: false, smooth: true, yAxisIndex: 1 },
+      { name: 'Events', type: 'bar' as const, data: daily.data.map(d => d.total_events), itemStyle: { color: '#6366f1', opacity: 0.5 }, barMaxWidth: 16, yAxisIndex: 0 },
+      { name: 'p95 ms', type: 'line' as const, data: daily.data.map(d => d.avg_p95_ms), lineStyle: { color: '#f59e0b' }, itemStyle: { color: '#f59e0b' }, showSymbol: false, smooth: true, yAxisIndex: 1 },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 
   // Office overlap stacked
   const overlapRows = (overlap?.data as Record<string, unknown>[] | undefined) ?? []
   const overlapOffices = [...new Set(overlapRows.map(r => String(r.office_prefix)))].sort()
-  const OFFICE_COLORS: Record<string, string> = { LON: '#22d3ee', NYC: '#818cf8', SIN: '#34d399' }
+  const OFFICE_COLORS: Record<string, string> = { LON: '#6366f1', NYC: '#f97316', SIN: '#22c55e' }
   const overlapOption = overlapRows.length > 0 && {
     grid: { top: 8, right: 8, bottom: 40, left: 48 },
     xAxis: { type: 'category' as const, data: Array.from({ length: 24 }, (_, i) => `${i}:00`) },
-    yAxis: { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: overlapOffices.map(o => ({
       name: o,
       type: 'bar' as const,
@@ -89,9 +89,9 @@ export default function PeakPressure() {
         const row = overlapRows.find(r => Number(r.hour_utc) === h && r.office_prefix === o)
         return row ? Number(row.event_count) : 0
       }),
-      itemStyle: { color: OFFICE_COLORS[o] ?? '#6b7280' },
+      itemStyle: { color: OFFICE_COLORS[o] ?? '#737373' },
     })),
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 

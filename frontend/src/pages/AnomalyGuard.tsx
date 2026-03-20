@@ -21,25 +21,25 @@ export default function AnomalyGuard() {
 
   const scatterOption = data && data.data.length > 0 && {
     grid: { top: 16, right: 24, bottom: 40, left: 60 },
-    xAxis: { type: 'value' as const, name: 'Δ% vs baseline', nameTextStyle: { color: '#6b7280', fontSize: 11 }, axisLabel: { formatter: (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%` } },
-    yAxis: { type: 'value' as const, name: 'z-score', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    xAxis: { type: 'value' as const, name: 'Δ% vs baseline', nameTextStyle: { color: '#737373', fontSize: 11 }, axisLabel: { formatter: (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%` } },
+    yAxis: { type: 'value' as const, name: 'z-score', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: [{
       type: 'scatter' as const,
       data: data.data.map(d => [d.delta_pct, d.z_score, d.feature]),
       symbolSize: 10,
       itemStyle: {
         color: (p: { value: [number, number, string] }) =>
-          p.value[1] > 3 ? '#f87171' : p.value[1] > 2 ? '#fbbf24' : '#22d3ee',
+          p.value[1] > 3 ? '#ef4444' : p.value[1] > 2 ? '#f59e0b' : '#6366f1',
         opacity: 0.85,
       },
-      label: { show: true, formatter: (p: { value: [number, number, string] }) => p.value[2], position: 'top' as const, fontSize: 10, color: '#6b7280' },
+      label: { show: true, formatter: (p: { value: [number, number, string] }) => p.value[2], position: 'top' as const, fontSize: 10, color: '#737373' },
     }],
     tooltip: { trigger: 'item' as const, formatter: (p: { value: [number, number, string] }) =>
       `<b>${p.value[2]}</b><br/>Δ: ${p.value[0] > 0 ? '+' : ''}${p.value[0].toFixed(1)}%<br/>z-score: ${p.value[1].toFixed(2)}`
     },
     markLine: {
-      data: [{ yAxis: zThreshold, lineStyle: { color: '#fbbf24', type: 'dashed' } }],
-      label: { formatter: `z = ${zThreshold}`, color: '#fbbf24', fontSize: 10 },
+      data: [{ yAxis: zThreshold, lineStyle: { color: '#f59e0b', type: 'dashed' } }],
+      label: { formatter: `z = ${zThreshold}`, color: '#f59e0b', fontSize: 10 },
     },
   }
 

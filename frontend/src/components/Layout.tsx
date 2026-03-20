@@ -111,7 +111,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {/* Logo */}
         <div className={`flex items-center gap-2.5 px-4 h-14 border-b border-border flex-shrink-0 ${collapsed ? 'justify-center px-2' : ''}`}>
           <div className="w-6 h-6 rounded bg-accent/10 border border-accent/30 flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3" stroke="#22d3ee" strokeWidth="1.5">
+            <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3" stroke="#6366f1" strokeWidth="1.5">
               <polyline points="1,9 4,5 7,7 11,2"/>
             </svg>
           </div>

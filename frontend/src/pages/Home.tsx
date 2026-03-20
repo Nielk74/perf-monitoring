@@ -43,11 +43,11 @@ export default function Home() {
       data: daily?.data.map(d => d.stat_date.slice(5)) ?? [],
       axisLabel: { interval: 6 },
     },
-    yAxis: { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+    yAxis: { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#737373', fontSize: 11 } },
     series: [{
       type: 'bar' as const,
       data: daily?.data.map(d => d.total_events) ?? [],
-      itemStyle: { color: '#22d3ee', opacity: 0.7 },
+      itemStyle: { color: '#6366f1', opacity: 0.7 },
       emphasis: { itemStyle: { opacity: 1 } },
     }],
     tooltip: { trigger: 'axis' as const, formatter: (p: unknown[]) => {

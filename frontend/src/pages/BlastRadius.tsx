@@ -22,7 +22,7 @@ export default function BlastRadius() {
   const tags = deps?.data.filter(c => c.tag).map(c => c.tag!) ?? []
 
   function deltaColor(d: BlastItem) {
-    return d.delta_pct > 10 ? '#f87171' : d.delta_pct > 3 ? '#fbbf24' : d.delta_pct < -5 ? '#34d399' : '#22d3ee'
+    return d.delta_pct > 10 ? '#ef4444' : d.delta_pct > 3 ? '#f59e0b' : d.delta_pct < -5 ? '#10b981' : '#6366f1'
   }
 
   const barOption = data && {

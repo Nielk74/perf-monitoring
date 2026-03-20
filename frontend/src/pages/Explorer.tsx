@@ -35,10 +35,10 @@ const PANELS = [
 
 type PanelId = typeof PANELS[number]['id']
 
-const OFFICE_COLOR: Record<string, string> = { LON: '#22d3ee', NYC: '#818cf8', SIN: '#34d399' }
+const OFFICE_COLOR: Record<string, string> = { LON: '#6366f1', NYC: '#f97316', SIN: '#22c55e' }
 
 const TYPE_COLORS = [
-  '#22d3ee','#818cf8','#34d399','#fb923c','#a78bfa','#f472b6','#fbbf24','#60a5fa',
+  '#6366f1','#22c55e','#f97316','#8b5cf6','#ec4899','#f59e0b','#3b82f6','#0ea5e9',
 ]
 
 // ─── Panel container ──────────────────────────────────────────────────────────
@@ -197,16 +197,16 @@ function TrendPanel({ xs }: { xs: XState }) {
   const option = {
     grid: { top: 16, right: 8, bottom: 28, left: 48 },
     xAxis: { type: 'category', data: data?.data.map((d: Record<string, unknown>) => String(d.stat_date ?? '').slice(5)) ?? [] },
-    yAxis: { type: 'value', name: 'ms', nameTextStyle: { color: '#6b7280', fontSize: 10 } },
+    yAxis: { type: 'value', name: 'ms', nameTextStyle: { color: '#737373', fontSize: 10 } },
     series: [
       { name: 'avg', type: 'line', smooth: true, showSymbol: false,
         data: data?.data.map((d: Record<string, unknown>) => d.avg_ms as number) ?? [],
-        lineStyle: { color: '#22d3ee', width: 2 }, areaStyle: { color: 'rgba(34,211,238,0.06)' }, itemStyle: { color: '#22d3ee' } },
+        lineStyle: { color: '#6366f1', width: 2 }, areaStyle: { color: 'rgba(99,102,241,0.06)' }, itemStyle: { color: '#6366f1' } },
       { name: 'p95', type: 'line', smooth: true, showSymbol: false,
         data: data?.data.map((d: Record<string, unknown>) => d.p95_ms as number) ?? [],
-        lineStyle: { color: '#f87171', type: 'dashed', width: 1.5 }, itemStyle: { color: '#f87171' } },
+        lineStyle: { color: '#ef4444', type: 'dashed', width: 1.5 }, itemStyle: { color: '#ef4444' } },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 10 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 10 } },
     tooltip: { trigger: 'axis' },
   }
 
@@ -301,16 +301,16 @@ function OfficePanel({ xs, set }: { xs: XState; set: (p: Partial<XState>) => voi
   const option = {
     grid: { top: 8, right: 8, bottom: 28, left: 48 },
     xAxis: { type: 'category', data: byOffice.map(o => o.office) },
-    yAxis: { type: 'value', name: 'ms', nameTextStyle: { color: '#6b7280', fontSize: 10 } },
+    yAxis: { type: 'value', name: 'ms', nameTextStyle: { color: '#737373', fontSize: 10 } },
     series: [
       { name: 'avg', type: 'bar', data: byOffice.map(o => +o.avg_ms.toFixed(1)),
-        itemStyle: { color: (p: { dataIndex: number }) => OFFICE_COLOR[byOffice[p.dataIndex].office] ?? '#6b7280' },
+        itemStyle: { color: (p: { dataIndex: number }) => OFFICE_COLOR[byOffice[p.dataIndex].office] ?? '#737373' },
         barMaxWidth: 40, barGap: '10%' },
       { name: 'p95', type: 'bar', data: byOffice.map(o => +o.p95_ms.toFixed(1)),
-        itemStyle: { color: (p: { dataIndex: number }) => `${OFFICE_COLOR[byOffice[p.dataIndex].office] ?? '#6b7280'}60` },
+        itemStyle: { color: (p: { dataIndex: number }) => `${OFFICE_COLOR[byOffice[p.dataIndex].office] ?? '#737373'}60` },
         barMaxWidth: 40 },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 10 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 10 } },
     tooltip: { trigger: 'axis' },
   }
 
@@ -335,7 +335,7 @@ function OfficePanel({ xs, set }: { xs: XState; set: (p: Partial<XState>) => voi
                 ? 'border-current opacity-100'
                 : 'border-border opacity-50 hover:opacity-100'
             }`}
-            style={{ color: OFFICE_COLOR[o.office] ?? '#6b7280' }}
+            style={{ color: OFFICE_COLOR[o.office] ?? '#737373' }}
           >
             {o.office}
           </button>
@@ -367,9 +367,9 @@ function PeakPanel({ xs }: { xs: XState }) {
     visualMap: {
       min: 0, max: maxC,
       show: false,
-      inRange: { color: ['#111318', '#0e7490', '#22d3ee'] },
+      inRange: { color: ['#f5f3ff', '#a5b4fc', '#4f46e5'] },
     },
-    series: [{ type: 'heatmap', data: heatData, emphasis: { itemStyle: { shadowBlur: 6, shadowColor: 'rgba(34,211,238,0.4)' } } }],
+    series: [{ type: 'heatmap', data: heatData, emphasis: { itemStyle: { shadowBlur: 6, shadowColor: 'rgba(99,102,241,0.3)' } } }],
     tooltip: { trigger: 'item', formatter: (p: Record<string, unknown>) => {
       const v = p.value as [number, number, number]
       return `<b>${DAYS[v[1]]} ${v[0]}:00</b><br/>${v[2]} events`
@@ -486,17 +486,17 @@ function SessionPanel({ xs }: { xs: XState }) {
     grid: { top: 12, right: 8, bottom: 28, left: 48 },
     xAxis: { type: 'category', data: daily?.data.map(d => String(d.stat_date).slice(5)) ?? [], axisLabel: { fontSize: 9, interval: 5 } },
     yAxis: [
-      { type: 'value', name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 10 } },
-      { type: 'value', name: 'Sessions', nameTextStyle: { color: '#6b7280', fontSize: 10 } },
+      { type: 'value', name: 'Events', nameTextStyle: { color: '#737373', fontSize: 10 } },
+      { type: 'value', name: 'Sessions', nameTextStyle: { color: '#737373', fontSize: 10 } },
     ],
     series: [
       { name: 'Events', type: 'bar', data: daily?.data.map(d => d.total_events) ?? [],
-        itemStyle: { color: '#22d3ee', opacity: 0.4 }, barMaxWidth: 12, yAxisIndex: 0 },
+        itemStyle: { color: '#6366f1', opacity: 0.4 }, barMaxWidth: 12, yAxisIndex: 0 },
       { name: 'Impersonation', type: 'line', smooth: true, showSymbol: false,
         data: data?.data.map((d: Record<string, unknown>) => d.session_count) ?? [],
-        lineStyle: { color: '#818cf8', width: 1.5 }, itemStyle: { color: '#818cf8' }, yAxisIndex: 1 },
+        lineStyle: { color: '#6366f1', width: 1.5 }, itemStyle: { color: '#6366f1' }, yAxisIndex: 1 },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 10 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 10 } },
     tooltip: { trigger: 'axis' },
   }
 

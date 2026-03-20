@@ -26,29 +26,29 @@ export default function AdoptionVelocity() {
     grid: { top: 12, right: 8, bottom: 36, left: 52 },
     xAxis: { type: 'category' as const, data: data.data.map(d => String(d.week_start).slice(0, 10)) },
     yAxis: [
-      { type: 'value' as const, name: 'Users', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
-      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#6b7280', fontSize: 11 } },
+      { type: 'value' as const, name: 'Users', nameTextStyle: { color: '#737373', fontSize: 11 } },
+      { type: 'value' as const, name: 'Events', nameTextStyle: { color: '#737373', fontSize: 11 } },
     ],
     series: [
       {
         name: 'Weekly users',
         type: 'line' as const, smooth: true, showSymbol: false,
         data: data.data.map(d => d.weekly_users),
-        lineStyle: { color: '#22d3ee', width: 2 },
-        areaStyle: { color: 'rgba(34,211,238,0.08)' },
-        itemStyle: { color: '#22d3ee' },
+        lineStyle: { color: '#6366f1', width: 2 },
+        areaStyle: { color: 'rgba(99,102,241,0.08)' },
+        itemStyle: { color: '#6366f1' },
         yAxisIndex: 0,
       },
       {
         name: 'Events',
         type: 'bar' as const,
         data: data.data.map(d => d.event_count),
-        itemStyle: { color: '#818cf8', opacity: 0.4 },
+        itemStyle: { color: '#6366f1', opacity: 0.4 },
         barMaxWidth: 20,
         yAxisIndex: 1,
       },
     ],
-    legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: '#737373', fontSize: 11 } },
     tooltip: { trigger: 'axis' as const },
   }
 
