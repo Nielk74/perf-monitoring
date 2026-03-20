@@ -1,4 +1,4 @@
-# STAR — Performance Monitoring
+# Performance Monitoring
 
 Performance analytics platform for audit event data. Ingests Oracle audit logs and Git commit history into DuckDB, materializes 10 analytics use-cases, and exposes them through a FastAPI REST API and a React/ECharts dashboard.
 
