@@ -101,7 +101,8 @@ class OracleSource:
         cursor = conn.cursor()
         cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
         cursor.execute(f"""
-            SELECT SUPP_USER, ASMD_USER, WORKSTATION, MOD_DT,
+            SELECT SUPP_USER, ASMD_USER, WORKSTATION,
+                   CAST(MOD_DT AS TIMESTAMP) AS MOD_DT,
                    FEATURE_TYPE, FEATURE, DETAIL, DURATION_MS
             FROM STAR.STAR_ACTION_AUDIT
             WHERE MOD_DT > :hwm
