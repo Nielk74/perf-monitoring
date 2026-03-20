@@ -25,7 +25,8 @@ import duckdb
 
 from src.db.connection import get_connection
 
-BATCH_SIZE = 10_000
+BATCH_SIZE = 100_000
+ORACLE_ARRAY_SIZE = 50_000   # rows fetched per network round trip
 DEFAULT_MOCK_PATH = "data/mock_oracle.db"
 
 
@@ -99,6 +100,7 @@ class OracleSource:
     def fetch(self, high_water_mark: datetime, days_limit: int | None) -> Iterator[dict]:
         conn = self._connect()
         cursor = conn.cursor()
+        cursor.arraysize = ORACLE_ARRAY_SIZE
         cutoff_expr = f"SYSTIMESTAMP - {days_limit or 365}"
         cursor.execute(f"""
             SELECT SUPP_USER, ASMD_USER, WORKSTATION,
@@ -107,12 +109,15 @@ class OracleSource:
             FROM STAR.STAR_ACTION_AUDIT
             WHERE MOD_DT > :hwm
               AND MOD_DT > {cutoff_expr}
-            ORDER BY MOD_DT ASC
         """, hwm=high_water_mark)
 
         cols = [c[0].lower() for c in cursor.description]
-        for row in cursor:
-            yield dict(zip(cols, row))
+        while True:
+            chunk = cursor.fetchmany()
+            if not chunk:
+                break
+            for row in chunk:
+                yield dict(zip(cols, row))
 
         cursor.close()
         conn.close()
