@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
+import Explorer from './pages/Explorer'
 import SilentDegrader from './pages/SilentDegrader'
 import BlastRadius from './pages/BlastRadius'
 import EnvironmentalFingerprint from './pages/EnvironmentalFingerprint'
@@ -17,6 +18,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/"                         element={<Home />} />
+        <Route path="/explorer"                 element={<Explorer />} />
         <Route path="/silent-degrader"          element={<SilentDegrader />} />
         <Route path="/blast-radius"             element={<BlastRadius />} />
         <Route path="/environmental-fingerprint" element={<EnvironmentalFingerprint />} />

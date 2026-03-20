@@ -17,6 +17,13 @@ const NAV: NavItem[] = [
     </svg>,
   },
   {
+    path: '/explorer', label: 'Explorer', tag: '',
+    icon: <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10" y1="10" x2="14.5" y2="14.5"/>
+      <line x1="4.5" y1="6.5" x2="8.5" y2="6.5"/><line x1="6.5" y1="4.5" x2="6.5" y2="8.5"/>
+    </svg>,
+  },
+  {
     path: '/silent-degrader', label: 'Silent Degrader', tag: '01',
     icon: <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5">
       <polyline points="1,4 5,10 9,7 15,13"/><line x1="12" y1="13" x2="15" y2="13"/><line x1="15" y1="10" x2="15" y2="13"/>
@@ -133,14 +140,19 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
-          {NAV.map(item => (
+        <nav className="flex-1 overflow-y-auto py-3 px-2">
+          {NAV.map((item, idx) => (
+            <div key={item.path}>
+              {/* Divider before UC-01 */}
+              {idx === 2 && !collapsed && (
+                <div className="my-2 border-t border-border/50" />
+              )}
+              {idx === 2 && collapsed && <div className="my-1 border-t border-border/50 mx-1" />}
             <NavLink
-              key={item.path}
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) => `
-                flex items-center gap-2.5 px-2 py-2 rounded text-sm
+                flex items-center gap-2.5 px-2 py-2 rounded text-sm mb-0.5
                 transition-colors duration-100 group relative
                 ${isActive
                   ? 'bg-accent/10 text-accent border border-accent/20'
@@ -161,6 +173,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </>
               )}
             </NavLink>
+            </div>
           ))}
         </nav>
 

@@ -26,8 +26,8 @@ export default function FrictionHeatmap() {
     series: [{
       type: 'bar' as const,
       data: [...data.data].reverse().map(d => ({
-        value: +d.total_wait_hours.toFixed(2),
-        itemStyle: { color: `rgba(248,113,113,${0.3 + d.friction_score * 0.7})` },
+        value: +(d.total_wait_hours ?? 0).toFixed(2),
+        itemStyle: { color: `rgba(248,113,113,${0.3 + (d.friction_score ?? 0) * 0.7})` },
       })),
       barMaxWidth: 24,
       label: { show: true, position: 'right' as const, formatter: (p: { value: number }) => `${p.value.toFixed(1)}h`, color: '#6b7280', fontSize: 10 },
