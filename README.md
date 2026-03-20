@@ -15,80 +15,102 @@ Performance analytics platform for audit event data. Ingests Oracle audit logs a
 
 ---
 
-## Prerequisites
+## Quick start
 
-- Python 3.11+
-- Node.js 18+
+Run these commands in order from the repo root. Everything below assumes a fresh clone.
 
----
-
-## Installation
-
-### 1. Clone the repo
-
-```bash
-git clone <repo-url>
-cd perf-monitoring
-```
-
-### 2. Python dependencies
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Frontend dependencies
-
 ```bash
-cd frontend
-npm install
-cd ..
+cd frontend && npm install && cd ..
 ```
 
----
+### 2. Generate mock data
 
-## Setup
-
-### Generate mock data
-
-The project ships with generators for both Oracle audit data and a Git repository. Run them once to populate `data/`:
+Creates `data/mock_oracle.db` and `data/mock_star_repo/` (the `data/` folder is created automatically):
 
 ```bash
 python mock_oracle.py
 python mock_git_repo.py
 ```
 
-### Ingest data into DuckDB
+### 3. Ingest data into DuckDB
 
 ```bash
 python -m src.ingestion.oracle_importer
 python -m src.ingestion.git_importer
 ```
 
-### Materialize analytics tables
+### 4. Materialize analytics tables
 
 ```bash
 python -m src.analytics.materializer
 ```
 
+### 5. Start the API
+
+```bash
+uvicorn src.api.main:app --reload --port 8001
+```
+
+Check it is up: `curl http://localhost:8001/health` should return `{"status":"ok"}`.
+
+### 6. Start the frontend (separate terminal)
+
+```bash
+cd frontend && npm run dev
+```
+
+Open **http://localhost:5173** in your browser.
+
 ---
 
-## Running
+## Re-generating mock data
 
-### Backend (FastAPI)
-
-```bash
-uvicorn src.api.main:app --reload --port 8000
-```
-
-### Frontend (Vite dev server)
+If you need to reset and regenerate:
 
 ```bash
-cd frontend
-npm run dev
+python mock_oracle.py --reset
+python mock_git_repo.py --reset
 ```
 
-The dashboard is available at **http://localhost:5173**.
+### Scaling the dataset
+
+`mock_oracle.py` ships with three built-in profiles and individual overrides:
+
+```bash
+python mock_oracle.py --scale small               # 3 months, ~100k events
+python mock_oracle.py --scale medium              # 6 months, ~900k events (default)
+python mock_oracle.py --scale large               # 12 months, ~5.5M events
+
+# Fine-grained overrides (applied on top of the chosen profile):
+python mock_oracle.py --users 500
+python mock_oracle.py --days 60
+python mock_oracle.py --events-per-day 20000
+python mock_oracle.py --scale large --users 1000 --events-per-day 50000
+```
+
+`mock_git_repo.py` accepts history length and commit density overrides:
+
+```bash
+python mock_git_repo.py --days 180               # shorter history (default: 365)
+python mock_git_repo.py --commits-per-day 5      # denser commit log (default: 2)
+```
+
+Always pass `--reset` to replace an existing dataset.
+
+Then repeat steps 3 and 4 above.
+
+---
+
+## Prerequisites
+
+- Python 3.11+
+- Node.js 18+
 
 ---
 

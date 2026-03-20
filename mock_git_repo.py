@@ -10,17 +10,29 @@ v2.12.0 (day -75) and v2.14.0 (day -35) are the blast-radius releases;
 these dates match the BLAST_DAYS_AGO constants in mock_oracle.py.
 
 Usage:
-    python mock_git_repo.py              # create (errors if repo already exists)
-    python mock_git_repo.py --reset      # delete and recreate
-    python mock_git_repo.py --output PATH
+    python mock_git_repo.py                          # create (errors if repo already exists)
+    python mock_git_repo.py --reset                  # delete and recreate
+    python mock_git_repo.py --output PATH            # custom repo path
+    python mock_git_repo.py --days 180               # history length in days (default: 365)
+    python mock_git_repo.py --commits-per-day 5      # average commits per working day (default: 2)
+    python mock_git_repo.py --reset --days 730 --commits-per-day 4  # combine
 """
 
 import argparse
 import os
 import random
 import shutil
+import stat
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+
+def _force_rmtree(path: Path):
+    """Remove a directory tree, handling read-only files (common in .git on Windows)."""
+    def on_error(func, fpath, _exc):
+        os.chmod(fpath, stat.S_IWRITE)
+        func(fpath)
+    shutil.rmtree(path, onerror=on_error)
 
 import git  # gitpython
 
@@ -196,11 +208,11 @@ def _make_commit(repo: git.Repo, repo_path: Path, files: list[str],
 # Main
 # ---------------------------------------------------------------------------
 
-def build_repo(output_path: str, reset: bool):
+def build_repo(output_path: str, reset: bool, days: int = 365, commits_per_day: float = 2.0):
     out = Path(output_path)
 
     if reset and out.exists():
-        shutil.rmtree(out)
+        _force_rmtree(out)
         print(f"Removed {out}")
 
     if out.exists():
@@ -220,11 +232,11 @@ def build_repo(output_path: str, reset: bool):
     repo.config_writer().set_value("user", "email", "dev@trading-firm.com").release()
 
     today = datetime.now(timezone.utc)
-    start = today - timedelta(days=365)
+    start = today - timedelta(days=days)
 
     # --- Initial commit (all files) ---
     repo.git.add(A=True)
-    init_dt = _dt(365, hour=9)
+    init_dt = _dt(days, hour=9)
     iso_init = _iso(init_dt)
     author0 = AUTHORS[0]
     repo.index.commit(
@@ -234,22 +246,22 @@ def build_repo(output_path: str, reset: bool):
     )
     print("  Initial commit done")
 
-    # Build tag lookup: days_ago → tag info
-    release_days = {r[0]: r for r in RELEASES}
+    # Build tag lookup: days_ago → tag info (skip releases outside the requested history window)
+    release_days = {r[0]: r for r in RELEASES if r[0] < days}
 
     # Build a commit schedule: one entry per commit
     # Each day with commits has 0-2 regular commits + optional release commit
     schedule = []   # list of (days_ago, recipe_idx, author_idx)
     recipe_idx = 0
 
-    for days_ago in range(364, 0, -1):
+    for days_ago in range(days - 1, 0, -1):
         current_dt = today - timedelta(days=days_ago)
         if current_dt.weekday() >= 5:   # skip weekends mostly
             if random.random() > 0.15:
                 continue
 
-        # 1-3 commits on workdays, 0-1 on weekends
-        n_commits = random.choices([1, 2, 3], weights=[3, 5, 2])[0]
+        # commits per day scaled by commits_per_day (avg on workdays)
+        n_commits = max(1, round(random.gauss(commits_per_day, max(1.0, commits_per_day * 0.4))))
 
         for i in range(n_commits):
             hour = random.randint(9, 17)
@@ -331,12 +343,16 @@ def build_repo(output_path: str, reset: bool):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create mock STAR git repository")
-    parser.add_argument("--output", default=DEFAULT_OUTPUT)
-    parser.add_argument("--reset",  action="store_true", help="Delete and recreate existing repo")
+    parser.add_argument("--output",           default=DEFAULT_OUTPUT)
+    parser.add_argument("--reset",            action="store_true", help="Delete and recreate existing repo")
+    parser.add_argument("--days",             type=int, default=365,
+                        help="History length in days (default: 365)")
+    parser.add_argument("--commits-per-day",  type=float, default=2.0, dest="commits_per_day",
+                        help="Average commits per working day (default: 2)")
     args = parser.parse_args()
 
     out_dir = os.path.dirname(args.output)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    build_repo(args.output, args.reset)
+    build_repo(args.output, args.reset, days=args.days, commits_per_day=args.commits_per_day)

@@ -6,11 +6,17 @@ Creates a SQLite database that mirrors the Oracle STAR.STAR_ACTION_AUDIT table,
 populated with synthetic data covering all 10 performance monitoring use cases.
 
 Usage:
-    python mock_oracle.py                        # medium scale (default)
-    python mock_oracle.py --scale small          # 3 months, ~100k events
-    python mock_oracle.py --scale large          # 12 months, ~2M events
-    python mock_oracle.py --reset                # truncate and regenerate
-    python mock_oracle.py --output PATH          # custom db path (default: data/mock_oracle.db)
+    python mock_oracle.py                             # medium scale (default)
+    python mock_oracle.py --scale small               # 3 months, ~100k events
+    python mock_oracle.py --scale large               # 12 months, ~2M events
+    python mock_oracle.py --reset                     # truncate and regenerate
+    python mock_oracle.py --output PATH               # custom db path (default: data/mock_oracle.db)
+
+    # Fine-grained overrides (applied on top of the chosen --scale profile):
+    python mock_oracle.py --users 500                 # override number of users
+    python mock_oracle.py --days 60                   # override history length in days
+    python mock_oracle.py --events-per-day 20000      # override event volume per day
+    python mock_oracle.py --scale large --users 1000 --events-per-day 50000  # combine
 """
 
 import argparse
@@ -395,9 +401,13 @@ def verify(conn, today, end, halfway, blast_dates, anomaly_count_date, anomaly_d
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate mock Oracle STAR_ACTION_AUDIT in SQLite")
-    parser.add_argument("--scale",  choices=SCALE_PROFILES.keys(), default=DEFAULT_SCALE)
-    parser.add_argument("--output", default=DEFAULT_OUTPUT)
-    parser.add_argument("--reset",  action="store_true", help="Drop and regenerate existing database")
+    parser.add_argument("--scale",          choices=SCALE_PROFILES.keys(), default=DEFAULT_SCALE)
+    parser.add_argument("--output",         default=DEFAULT_OUTPUT)
+    parser.add_argument("--reset",          action="store_true", help="Drop and regenerate existing database")
+    parser.add_argument("--users",          type=int, help="Override number of users (e.g. 500)")
+    parser.add_argument("--days",           type=int, help="Override history length in days (e.g. 60)")
+    parser.add_argument("--events-per-day", type=int, dest="events_per_day",
+                        help="Override event volume per day (e.g. 20000)")
     args = parser.parse_args()
 
     out_dir = os.path.dirname(args.output)
@@ -417,7 +427,10 @@ if __name__ == "__main__":
         conn.close()
         sys.exit(0)
 
-    params = SCALE_PROFILES[args.scale]
+    params = dict(SCALE_PROFILES[args.scale])
+    if args.users:          params["users"]          = args.users
+    if args.days:           params["days"]           = args.days
+    if args.events_per_day: params["events_per_day"] = args.events_per_day
     today  = date.today()
     start  = today - timedelta(days=params["days"])
     end    = today
