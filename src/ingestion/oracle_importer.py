@@ -132,12 +132,12 @@ class OracleSource:
                 cursor.arraysize = ORACLE_ARRAY_SIZE
                 cursor.execute("""
                     SELECT SUPP_USER, ASMD_USER, WORKSTATION,
-                           CAST(MOD_DT AS TIMESTAMP) AS MOD_DT,
+                           SYS_EXTRACT_UTC(MOD_DT) AS MOD_DT,
                            FEATURE_TYPE, FEATURE, DETAIL, DURATION_MS
                     FROM STAR.STAR_ACTION_AUDIT
-                    WHERE MOD_DT > :start_dt
-                      AND MOD_DT <= :end_dt
-                """, start_dt=chunk_start, end_dt=chunk_end)
+                    WHERE SYS_EXTRACT_UTC(MOD_DT) > :start_dt
+                      AND SYS_EXTRACT_UTC(MOD_DT) <= :end_dt
+                """, start_dt=chunk_start.replace(tzinfo=None), end_dt=chunk_end.replace(tzinfo=None))
 
                 cols = [c[0].lower() for c in cursor.description]
                 while True:
@@ -156,8 +156,9 @@ class OracleSource:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT COUNT(*) FROM STAR.STAR_ACTION_AUDIT
-            WHERE MOD_DT > :start_dt AND MOD_DT <= :end_dt
-        """, start_dt=start_dt, end_dt=end_dt)
+            WHERE SYS_EXTRACT_UTC(MOD_DT) > :start_dt
+              AND SYS_EXTRACT_UTC(MOD_DT) <= :end_dt
+        """, start_dt=start_dt.replace(tzinfo=None), end_dt=end_dt.replace(tzinfo=None))
         n = cursor.fetchone()[0]
         cursor.close()
         conn.close()
