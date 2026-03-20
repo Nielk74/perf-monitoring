@@ -105,8 +105,8 @@ oracle:
 
 git:
   repos:
-    - path: data/mock_star_repo
-      name: star-app
+    - path: data/mock_repo
+      name: my-app
 ```
 
 For a real Oracle connection, uncomment `python-oracledb` in `requirements.txt` and set the following environment variables:
