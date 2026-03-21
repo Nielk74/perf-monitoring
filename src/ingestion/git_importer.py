@@ -390,12 +390,11 @@ def import_repo(
     print(f"  [{repo_name}] inserting into DuckDB …", end="", flush=True)
     t2 = time.monotonic()
 
-    def _csv_copy_load(tmp: str, table: str, ignore: bool) -> None:
-        escaped  = tmp.replace("\\", "/")
-        modifier = "OR IGNORE " if ignore else ""
+    def _csv_copy_load(tmp: str, table: str) -> None:
+        escaped = tmp.replace("\\", "/")
         try:
             conn.execute(
-                f"INSERT {modifier}INTO {table} "
+                f"INSERT INTO {table} "
                 f"SELECT * FROM read_csv('{escaped}', header=false, "
                 f"delim='\t', encoding='utf-8', columns={{{_csv_col_types(table)}}})"
             )
@@ -403,11 +402,11 @@ def import_repo(
             os.unlink(tmp)
 
     # commits CSV was already written during git numstat (pipelined)
-    _csv_copy_load(commit_tmp, "commits", ignore=True)
+    _csv_copy_load(commit_tmp, "commits")
 
     # file rows: write + load
     file_tmp = _write_csv_and_get_path(file_rows)
-    _csv_copy_load(file_tmp, "commit_files", ignore=False)
+    _csv_copy_load(file_tmp, "commit_files")
 
     imported = len(commit_rows)
     skipped  = len(meta) - imported
