@@ -287,12 +287,21 @@ def _csv_col_types(table: str) -> str:
     return _CSV_COL_TYPES[table]
 
 
+def _sanitize(v: object) -> object:
+    """Strip newlines/tabs from strings so every CSV row stays on one line."""
+    if isinstance(v, str):
+        return v.replace("\r", "").replace("\n", " ").replace("\t", " ")
+    return v
+
+
 def _write_csv_and_get_path(rows: list) -> str:
-    """Write rows to a temp CSV file and return the path."""
+    """Write rows to a tab-delimited UTF-8 CSV and return the path."""
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
     ) as f:
-        csv.writer(f).writerows(rows)
+        w = csv.writer(f, delimiter="\t")
+        for row in rows:
+            w.writerow([_sanitize(v) for v in row])
         return f.name
 
 
@@ -388,7 +397,7 @@ def import_repo(
             conn.execute(
                 f"INSERT {modifier}INTO {table} "
                 f"SELECT * FROM read_csv('{escaped}', header=false, "
-                f"encoding='utf-8', columns={{{_csv_col_types(table)}}})"
+                f"delim='\t', encoding='utf-8', columns={{{_csv_col_types(table)}}})"
             )
         finally:
             os.unlink(tmp)
