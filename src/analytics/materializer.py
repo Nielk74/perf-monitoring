@@ -165,12 +165,12 @@ def materialize_feature_sequences(conn: duckdb.DuckDBPyConnection) -> None:
         SELECT
             from_feature,
             to_feature,
-            from_feature_type,
-            to_feature_type,
-            COUNT(*)            AS transition_count,
-            AVG(gap_seconds)    AS avg_gap_seconds
+            MODE(from_feature_type) AS from_feature_type,
+            MODE(to_feature_type)   AS to_feature_type,
+            COUNT(*)                AS transition_count,
+            AVG(gap_seconds)        AS avg_gap_seconds
         FROM transitions
-        GROUP BY from_feature, to_feature, from_feature_type, to_feature_type
+        GROUP BY from_feature, to_feature
     """)
     n = conn.execute("SELECT COUNT(*) FROM feature_sequences").fetchone()[0]
     print(f"  feature_sequences:   {n:,} rows ({time.monotonic()-t0:.1f}s)")
