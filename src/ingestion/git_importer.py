@@ -290,7 +290,7 @@ def _csv_col_types(table: str) -> str:
 def _write_csv_and_get_path(rows: list) -> str:
     """Write rows to a temp CSV file and return the path."""
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".csv", delete=False, newline=""
+        mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
     ) as f:
         csv.writer(f).writerows(rows)
         return f.name
@@ -388,7 +388,7 @@ def import_repo(
             conn.execute(
                 f"INSERT {modifier}INTO {table} "
                 f"SELECT * FROM read_csv('{escaped}', header=false, "
-                f"columns={{{_csv_col_types(table)}}})"
+                f"encoding='utf-8', columns={{{_csv_col_types(table)}}})"
             )
         finally:
             os.unlink(tmp)
