@@ -283,8 +283,19 @@ _CSV_COL_TYPES = {
 }
 
 
+_CSV_COL_NAMES = {
+    "commits":      "commit_hash,repo_name,author_name,author_email,"
+                    "committed_at,message,is_merge,tag,deployed_at",
+    "commit_files": "commit_hash,file_path,change_type,lines_added,lines_removed",
+}
+
+
 def _csv_col_types(table: str) -> str:
     return _CSV_COL_TYPES[table]
+
+
+def _csv_col_names(table: str) -> str:
+    return _CSV_COL_NAMES[table]
 
 
 def _sanitize(v: object) -> object:
@@ -392,9 +403,10 @@ def import_repo(
 
     def _csv_copy_load(tmp: str, table: str) -> None:
         escaped = tmp.replace("\\", "/")
+        cols    = _csv_col_names(table)
         try:
             conn.execute(
-                f"INSERT INTO {table} "
+                f"INSERT INTO {table} ({cols}) "
                 f"SELECT * FROM read_csv('{escaped}', header=false, "
                 f"delim='\t', encoding='utf-8', columns={{{_csv_col_types(table)}}})"
             )
