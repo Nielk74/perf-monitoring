@@ -131,8 +131,7 @@ class OracleSource:
         chunks = list(self._chunks(start_dt, end_dt))
         conn   = self._connect()
         try:
-            for i, (chunk_start, chunk_end) in enumerate(chunks):
-                print(f"  chunk {i+1}/{len(chunks)}: {chunk_start.date()} → {chunk_end.date()}", end="\r")
+            for chunk_start, chunk_end in chunks:
                 cursor = conn.cursor()
                 cursor.arraysize = ORACLE_ARRAY_SIZE
                 cursor.execute("""
@@ -233,30 +232,32 @@ def run_import(
 ) -> dict:
     t0 = time.monotonic()
     hwm = _get_high_water_mark(duckdb_conn)
-    print(f"High-water mark: {hwm.isoformat()}")
+    print(f"  high-water mark: {hwm.date()}")
 
     if dry_run:
         n = source.count(hwm, days_limit)
-        print(f"Dry run: {n:,} rows would be imported.")
+        print(f"  dry run: {n:,} rows would be imported.")
         return {"rows": n, "elapsed_s": 0, "dry_run": True}
 
     batch: list[dict] = []
     total = 0
+    t_fetch = time.monotonic()
 
+    print("  fetching rows …", end="", flush=True)
     for row in source.fetch(hwm, days_limit):
         batch.append(row)
         if len(batch) >= BATCH_SIZE:
             _insert_batch(duckdb_conn, batch)
             total += len(batch)
             batch = []
-            print(f"  ... {total:,} rows imported", end="\r")
+            print(f"  fetching + inserting … {total:,} rows", end="\r", flush=True)
 
     if batch:
         _insert_batch(duckdb_conn, batch)
         total += len(batch)
 
     elapsed = time.monotonic() - t0
-    print(f"Imported {total:,} rows in {elapsed:.1f}s")
+    print(f"  inserted {total:,} rows [{elapsed:.1f}s]")
     return {"rows": total, "elapsed_s": elapsed, "dry_run": False}
 
 
