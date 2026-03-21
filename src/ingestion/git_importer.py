@@ -108,7 +108,8 @@ def _git_out(repo_path: str, args: list[str]) -> str:
     return subprocess.check_output(
         ["git", "-C", repo_path] + args,
         stderr=subprocess.DEVNULL,
-    ).decode("utf-8", errors="replace")
+        encoding="utf-8", errors="replace",
+    )
 
 
 def _bulk_metadata(repo_path: str, max_commits: int | None) -> list[dict]:
@@ -162,7 +163,7 @@ def _bulk_namestatus_with_meta(
     cur_hash: str | None = None
 
     with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                          text=True, bufsize=1 << 20) as proc:
+                          encoding="utf-8", errors="replace", bufsize=1 << 20) as proc:
         for line in proc.stdout:
             line = line.rstrip("\n")
             if line.startswith("META "):
@@ -204,7 +205,7 @@ def _numstat_chunk(repo_path: str, n: int, skip: int) -> dict[str, list[tuple]]:
     result: dict[str, list[tuple]] = {}
     cur = None
     with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                          text=True, bufsize=1 << 20) as proc:
+                          encoding="utf-8", errors="replace", bufsize=1 << 20) as proc:
         for line in proc.stdout:
             line = line.rstrip("\n")
             if line.startswith("COMMIT "):
@@ -227,6 +228,7 @@ def _bulk_numstat(repo_path: str, max_commits: int | None) -> dict[str, list[tup
     total = max_commits or int(subprocess.check_output(
         ["git", "-C", repo_path, "rev-list", "--count", "HEAD"],
         stderr=subprocess.DEVNULL,
+        encoding="utf-8", errors="replace",
     ).strip())
     chunk = max(1, (total + _NUMSTAT_WORKERS - 1) // _NUMSTAT_WORKERS)
 
