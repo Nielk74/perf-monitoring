@@ -126,12 +126,18 @@ class OracleSource:
             yield chunk_start, chunk_end
             chunk_start = chunk_end
 
-    def fetch(self, high_water_mark: datetime, days_limit: int | None) -> Iterator[dict]:
+    def fetch(self, high_water_mark: datetime, days_limit: int | None,
+              low_water_mark: datetime | None = None) -> Iterator[dict]:
         start_dt, end_dt = self._effective_range(high_water_mark, days_limit)
         chunks = list(self._chunks(start_dt, end_dt))
         conn   = self._connect()
         try:
             for chunk_start, chunk_end in chunks:
+                # Skip chunks already fully covered by existing DuckDB data
+                if (low_water_mark is not None
+                        and chunk_start >= low_water_mark
+                        and chunk_end   <= high_water_mark):
+                    continue
                 cursor = conn.cursor()
                 cursor.arraysize = ORACLE_ARRAY_SIZE
                 cursor.execute("""
@@ -154,19 +160,28 @@ class OracleSource:
         finally:
             conn.close()
 
-    def count(self, high_water_mark: datetime, days_limit: int | None) -> int:
+    def count(self, high_water_mark: datetime, days_limit: int | None,
+              low_water_mark: datetime | None = None) -> int:
         start_dt, end_dt = self._effective_range(high_water_mark, days_limit)
+        total = 0
         conn   = self._connect()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT COUNT(*) FROM STAR.STAR_ACTION_AUDIT
-            WHERE SYS_EXTRACT_UTC(MOD_DT) > :start_dt
-              AND SYS_EXTRACT_UTC(MOD_DT) <= :end_dt
-        """, start_dt=start_dt.replace(tzinfo=None), end_dt=end_dt.replace(tzinfo=None))
-        n = cursor.fetchone()[0]
-        cursor.close()
-        conn.close()
-        return n
+        try:
+            for chunk_start, chunk_end in self._chunks(start_dt, end_dt):
+                if (low_water_mark is not None
+                        and chunk_start >= low_water_mark
+                        and chunk_end   <= high_water_mark):
+                    continue
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM STAR.STAR_ACTION_AUDIT
+                    WHERE SYS_EXTRACT_UTC(MOD_DT) > :start_dt
+                      AND SYS_EXTRACT_UTC(MOD_DT) <= :end_dt
+                """, start_dt=chunk_start.replace(tzinfo=None), end_dt=chunk_end.replace(tzinfo=None))
+                total += cursor.fetchone()[0]
+                cursor.close()
+        finally:
+            conn.close()
+        return total
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +197,17 @@ def _get_high_water_mark(duckdb_conn: duckdb.DuckDBPyConnection) -> datetime:
             hwm = hwm.replace(tzinfo=timezone.utc)
         return hwm
     return datetime.now(timezone.utc) - timedelta(days=365)
+
+
+def _get_low_water_mark(duckdb_conn: duckdb.DuckDBPyConnection) -> datetime | None:
+    """Return MIN(mod_dt) from audit_events, or None if table is empty."""
+    row = duckdb_conn.execute("SELECT MIN(mod_dt) FROM audit_events").fetchone()
+    if row and row[0]:
+        lwm = row[0]
+        if lwm.tzinfo is None:
+            lwm = lwm.replace(tzinfo=timezone.utc)
+        return lwm
+    return None
 
 
 def _cutoff_dt(days_limit: int | None) -> datetime | None:
@@ -232,10 +258,13 @@ def run_import(
 ) -> dict:
     t0 = time.monotonic()
     hwm = _get_high_water_mark(duckdb_conn)
+    lwm = _get_low_water_mark(duckdb_conn)
     print(f"  high-water mark: {hwm.date()}")
+    if lwm:
+        print(f"  low-water mark:  {lwm.date()}")
 
     if dry_run:
-        n = source.count(hwm, days_limit)
+        n = source.count(hwm, days_limit, low_water_mark=lwm)
         print(f"  dry run: {n:,} rows would be imported.")
         return {"rows": n, "elapsed_s": 0, "dry_run": True}
 
@@ -244,7 +273,7 @@ def run_import(
     t_fetch = time.monotonic()
 
     print("  fetching rows …", end="", flush=True)
-    for row in source.fetch(hwm, days_limit):
+    for row in source.fetch(hwm, days_limit, low_water_mark=lwm):
         batch.append(row)
         if len(batch) >= BATCH_SIZE:
             _insert_batch(duckdb_conn, batch)
