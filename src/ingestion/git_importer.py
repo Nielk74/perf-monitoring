@@ -16,8 +16,14 @@ Usage:
 """
 
 import argparse
+import csv
+import os
+import re
+import subprocess
 import sys
+import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -28,6 +34,10 @@ from src.db.connection import get_connection
 
 SETTINGS_PATH  = "config/settings.yaml"
 MAX_DIFF_FILES = 1000   # skip file-level diff if commit touches more than this
+
+_TAG_RE = re.compile(r"(?:^|,\s*)tag:\s*([^,)]+)")
+# git format-string hex escapes (safe on all platforms)
+_FMT = "%x1f".join(["%H", "%P", "%aN", "%aE", "%ct", "%D", "%B"]) + "%x1e"
 
 
 # ---------------------------------------------------------------------------
@@ -91,100 +101,201 @@ def get_known_hashes(conn) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# File diff extraction
+# Bulk git log helpers  (O(1) subprocess calls regardless of commit count)
 # ---------------------------------------------------------------------------
 
-def extract_file_diffs(commit: git.Commit) -> list[dict] | None:
-    """
-    Returns list of {file_path, change_type, lines_added, lines_removed}.
-    Returns None if diff is too large or commit is the initial commit.
-    """
-    if not commit.parents:
-        # Initial commit: treat all files as Added
-        diffs = []
-        for item in commit.tree.traverse():
-            if item.type == "blob":
-                diffs.append({
-                    "file_path":     item.path,
-                    "change_type":   "A",
-                    "lines_added":   0,
-                    "lines_removed": 0,
-                })
-                if len(diffs) >= MAX_DIFF_FILES:
-                    return None
-        return diffs
+def _git_out(repo_path: str, args: list[str]) -> str:
+    return subprocess.check_output(
+        ["git", "-C", repo_path] + args,
+        stderr=subprocess.DEVNULL,
+    ).decode("utf-8", errors="replace")
 
-    parent = commit.parents[0]
-    try:
-        diffs_raw = parent.diff(commit, create_patch=False)
-    except Exception:
-        return None
 
-    if len(diffs_raw) > MAX_DIFF_FILES:
-        return None
+def _bulk_metadata(repo_path: str, max_commits: int | None) -> list[dict]:
+    """One git-log call → all commit metadata (standalone, not used when
+    name-status is also needed — see _bulk_namestatus_with_meta)."""
+    cmd = ["log", f"--format={_FMT}"]
+    if max_commits:
+        cmd += ["-n", str(max_commits)]
+    out = _git_out(repo_path, cmd)
+    return _parse_metadata(out)
 
-    result = []
-    for d in diffs_raw:
-        change_type = d.change_type[0].upper()  # A, M, D, R
-        path = d.b_path or d.a_path
-        # Line counts require patch; use stats for efficiency
-        result.append({
-            "file_path":     path,
-            "change_type":   change_type,
-            "lines_added":   None,
-            "lines_removed": None,
+
+def _parse_metadata(out: str) -> list[dict]:
+    records = []
+    for rec in out.split("\x1e"):
+        rec = rec.strip()
+        if not rec:
+            continue
+        parts = rec.split("\x1f", 6)
+        if len(parts) < 7:
+            continue
+        refs    = parts[5]
+        tag_m   = _TAG_RE.search(refs)
+        tag     = tag_m.group(1).strip() if tag_m else None
+        ts      = int(parts[4]) if parts[4].lstrip("-").isdigit() else 0
+        parents = parts[1].split() if parts[1].strip() else []
+        records.append({
+            "commit_hash":  parts[0].strip(),
+            "parents":      parents,
+            "author_name":  parts[2],
+            "author_email": parts[3],
+            "committed_ts": ts,
+            "message":      parts[6][:1000],
+            "tag":          tag,
         })
+    return records
 
-    # Get line counts from stats (one pass for the whole commit)
-    try:
-        stats = commit.stats.files
-        for item in result:
-            st = stats.get(item["file_path"])
-            if st:
-                item["lines_added"]   = st.get("insertions", 0)
-                item["lines_removed"] = st.get("deletions",  0)
-    except Exception:
-        pass
 
+def _bulk_namestatus_with_meta(
+    repo_path: str, max_commits: int | None
+) -> tuple[list[dict], dict[str, dict[str, str]]]:
+    """Single streaming git-log call: commit metadata + name-status."""
+    meta_fmt = "%x1f".join(["%H", "%P", "%aN", "%aE", "%ct", "%D", "%s"])
+    cmd = ["git", "-C", repo_path,
+           "log", f"--format=META {meta_fmt}", "--name-status"]
+    if max_commits:
+        cmd += ["-n", str(max_commits)]
+
+    meta_records: list[dict] = []
+    namestatus: dict[str, dict[str, str]] = {}
+    cur_hash: str | None = None
+
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          text=True, bufsize=1 << 20) as proc:
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            if line.startswith("META "):
+                parts = line[5:].split("\x1f", 6)
+                if len(parts) < 7:
+                    continue
+                refs     = parts[5]
+                tag_m    = _TAG_RE.search(refs)
+                tag      = tag_m.group(1).strip() if tag_m else None
+                ts       = int(parts[4]) if parts[4].lstrip("-").isdigit() else 0
+                parents  = parts[1].split() if parts[1].strip() else []
+                cur_hash = parts[0].strip()
+                meta_records.append({
+                    "commit_hash":  cur_hash,
+                    "parents":      parents,
+                    "author_name":  parts[2],
+                    "author_email": parts[3],
+                    "committed_ts": ts,
+                    "message":      parts[6][:1000],
+                    "tag":          tag,
+                })
+                namestatus[cur_hash] = {}
+            elif cur_hash and line.strip():
+                fp = line.split("\t")
+                if len(fp) >= 2:
+                    namestatus[cur_hash][fp[-1].strip()] = fp[0][0].upper()
+
+    return meta_records, namestatus
+
+
+_NUMSTAT_WORKERS = 4   # parallel git-log --numstat processes
+
+
+def _numstat_chunk(repo_path: str, n: int, skip: int) -> dict[str, list[tuple]]:
+    """Run git log --numstat for a slice of commits (used by parallel workers)."""
+    cmd = ["git", "-C", repo_path, "log",
+           "--format=COMMIT %H", "--numstat",
+           "-n", str(n), "--skip", str(skip)]
+    result: dict[str, list[tuple]] = {}
+    cur = None
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          text=True, bufsize=1 << 20) as proc:
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            if line.startswith("COMMIT "):
+                cur = line[7:]
+                result.setdefault(cur, [])
+            elif cur and "\t" in line:
+                parts = line.split("\t", 2)
+                if len(parts) == 3:
+                    try:
+                        added   = int(parts[0]) if parts[0] != "-" else 0
+                        removed = int(parts[1]) if parts[1] != "-" else 0
+                        result[cur].append((parts[2], added, removed))
+                    except ValueError:
+                        pass
+    return result
+
+
+def _bulk_numstat(repo_path: str, max_commits: int | None) -> dict[str, list[tuple]]:
+    """Parallel git-log --numstat across N worker chunks → merged result."""
+    total = max_commits or int(subprocess.check_output(
+        ["git", "-C", repo_path, "rev-list", "--count", "HEAD"],
+        stderr=subprocess.DEVNULL,
+    ).strip())
+    chunk = max(1, (total + _NUMSTAT_WORKERS - 1) // _NUMSTAT_WORKERS)
+
+    with ThreadPoolExecutor(max_workers=_NUMSTAT_WORKERS) as ex:
+        futures = [
+            ex.submit(_numstat_chunk, repo_path, chunk, skip)
+            for skip in range(0, total, chunk)
+        ]
+        merged: dict[str, list[tuple]] = {}
+        for f in futures:
+            merged.update(f.result())
+    return merged
+
+
+def _bulk_namestatus(repo_path: str, max_commits: int | None) -> dict[str, dict[str, str]]:
+    """One git-log --name-status call → {hash: {path: change_type}}."""
+    cmd = ["log", "--format=COMMIT %H", "--name-status"]
+    if max_commits:
+        cmd += ["-n", str(max_commits)]
+    out = _git_out(repo_path, cmd)
+    result: dict[str, dict[str, str]] = {}
+    cur = None
+    for line in out.splitlines():
+        if line.startswith("COMMIT "):
+            cur = line[7:].strip()
+            result.setdefault(cur, {})
+        elif cur and line.strip():
+            parts = line.split("\t")
+            if len(parts) >= 2:
+                ctype = parts[0][0].upper()          # A M D R C
+                path  = parts[-1].strip()            # for renames: new path
+                result[cur][path] = ctype
     return result
 
 
 # ---------------------------------------------------------------------------
-# DuckDB insert
+# DuckDB bulk insert helpers
 # ---------------------------------------------------------------------------
 
-def insert_commit(conn, commit_row: dict, file_rows: list[dict]) -> None:
-    conn.execute("""
-        INSERT OR IGNORE INTO commits
-            (commit_hash, repo_name, author_name, author_email,
-             committed_at, message, is_merge, tag, deployed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, [
-        commit_row["commit_hash"],
-        commit_row["repo_name"],
-        commit_row["author_name"],
-        commit_row["author_email"],
-        commit_row["committed_at"],
-        commit_row["message"],
-        commit_row["is_merge"],
-        commit_row["tag"],
-        commit_row["deployed_at"],
-    ])
+_CSV_COL_TYPES = {
+    "commits": (
+        "'commit_hash': 'VARCHAR', 'repo_name': 'VARCHAR', "
+        "'author_name': 'VARCHAR', 'author_email': 'VARCHAR', "
+        "'committed_at': 'VARCHAR', 'message': 'VARCHAR', "
+        "'is_merge': 'BOOLEAN', 'tag': 'VARCHAR', 'deployed_at': 'VARCHAR'"
+    ),
+    "commit_files": (
+        "'commit_hash': 'VARCHAR', 'file_path': 'VARCHAR', "
+        "'change_type': 'VARCHAR', 'lines_added': 'INTEGER', "
+        "'lines_removed': 'INTEGER'"
+    ),
+}
 
-    if file_rows:
-        conn.executemany("""
-            INSERT INTO commit_files
-                (commit_hash, file_path, change_type, lines_added, lines_removed)
-            VALUES (?, ?, ?, ?, ?)
-        """, [
-            (commit_row["commit_hash"], r["file_path"], r["change_type"],
-             r["lines_added"], r["lines_removed"])
-            for r in file_rows
-        ])
+
+def _csv_col_types(table: str) -> str:
+    return _CSV_COL_TYPES[table]
+
+
+def _write_csv_and_get_path(rows: list) -> str:
+    """Write rows to a temp CSV file and return the path."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, newline=""
+    ) as f:
+        csv.writer(f).writerows(rows)
+        return f.name
 
 
 # ---------------------------------------------------------------------------
-# Per-repo import
+# Per-repo import  (bulk-optimised)
 # ---------------------------------------------------------------------------
 
 def import_repo(
@@ -200,62 +311,83 @@ def import_repo(
         print(f"  [{repo_name}] path not found: {repo_path} — skipping")
         return {"repo": repo_name, "imported": 0, "skipped": 0, "error": "path not found"}
 
-    try:
-        repo = git.Repo(repo_path)
-    except git.InvalidGitRepositoryError:
+    if not (Path(repo_path) / ".git").exists() and not Path(repo_path).joinpath("HEAD").exists():
         print(f"  [{repo_name}] not a git repository: {repo_path} — skipping")
         return {"repo": repo_name, "imported": 0, "skipped": 0, "error": "not a git repo"}
 
-    known   = get_known_hashes(conn)
-    tag_map = build_tag_map(repo)
+    known = get_known_hashes(conn)
 
-    imported = 0
-    skipped  = 0
+    # ── 2 parallel git calls + pipeline commit CSV write ─────────────────
+    # name-status+meta finishes first (~0.5s); we immediately build commit_rows
+    # and write their CSV while numstat is still running (~1.9s).
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_meta = ex.submit(_bulk_namestatus_with_meta, repo_path, max_commits)
+        f_num  = ex.submit(_bulk_numstat,              repo_path, max_commits)
 
-    for commit in repo.iter_commits():
-        if max_commits and (imported + skipped) >= max_commits:
-            break
-
-        if commit.hexsha in known:
-            skipped += 1
-            continue
-
-        committed_at = datetime.fromtimestamp(commit.committed_date, tz=timezone.utc)
-
-        commit_row = {
-            "commit_hash":  commit.hexsha,
-            "repo_name":    repo_name,
-            "author_name":  commit.author.name,
-            "author_email": commit.author.email,
-            "committed_at": committed_at.isoformat(),
-            "message":      commit.message[:1000],
-            "is_merge":     len(commit.parents) > 1,
-            "tag":          tag_map.get(commit.hexsha),   # only direct tag; nearest resolved by analytics layer
-            "deployed_at":  _deployed_at_str(commit, tag_map),
-        }
+        meta, namestatus = f_meta.result()  # fast — available first
 
         if dry_run:
-            imported += 1
-            continue
+            numstat = f_num.result()
+            new = sum(1 for m in meta if m["commit_hash"] not in known)
+            return {"repo": repo_name, "imported": new, "skipped": len(meta) - new}
 
+        # Build and write commit CSV while numstat is still running
+        commit_rows = []
+        for m in meta:
+            h = m["commit_hash"]
+            if h in known:
+                continue
+            committed_at = datetime.fromtimestamp(m["committed_ts"], tz=timezone.utc)
+            tag          = m["tag"]
+            deployed_at  = (committed_at + timedelta(hours=2)).isoformat() if tag else None
+            commit_rows.append((
+                h, repo_name,
+                m["author_name"], m["author_email"],
+                committed_at.isoformat(), m["message"],
+                len(m["parents"]) > 1, tag, deployed_at,
+            ))
+
+        # Pipeline: submit commit CSV write as a background thread
+        f_commit_csv = ex.submit(_write_csv_and_get_path, commit_rows)
+
+        # Now wait for numstat (the slow one)
+        numstat = f_num.result()
+
+        commit_tmp = f_commit_csv.result()
+
+    # build file rows (fast, ~0.07s)
+    known_new = {r[0] for r in commit_rows}
+    file_rows = []
+    for h in known_new:
+        ns_map    = namestatus.get(h, {})
+        stat_list = numstat.get(h, [])
+        if len(stat_list) <= MAX_DIFF_FILES:
+            for path, added, removed in stat_list:
+                file_rows.append((h, path, ns_map.get(path, "M"), added, removed))
+
+    # ── bulk insert via CSV COPY ──────────────────────────────────────────
+    def _csv_copy_load(tmp: str, table: str, ignore: bool) -> None:
+        escaped  = tmp.replace("\\", "/")
+        modifier = "OR IGNORE " if ignore else ""
         try:
-            file_diffs = extract_file_diffs(commit)
-        except Exception as e:
-            print(f"    [warn] diff failed for {commit.hexsha[:8]}: {e}")
-            file_diffs = None
+            conn.execute(
+                f"INSERT {modifier}INTO {table} "
+                f"SELECT * FROM read_csv('{escaped}', header=false, "
+                f"columns={{{_csv_col_types(table)}}})"
+            )
+        finally:
+            os.unlink(tmp)
 
-        insert_commit(conn, commit_row, file_diffs or [])
-        imported += 1
+    # commits CSV was already written during git numstat (pipelined)
+    _csv_copy_load(commit_tmp, "commits", ignore=True)
 
-    if not dry_run:
-        conn.commit() if hasattr(conn, "commit") else None
+    # file rows: write + load
+    file_tmp = _write_csv_and_get_path(file_rows)
+    _csv_copy_load(file_tmp, "commit_files", ignore=False)
 
+    imported = len(commit_rows)
+    skipped  = len(meta) - imported
     return {"repo": repo_name, "imported": imported, "skipped": skipped}
-
-
-def _deployed_at_str(commit: git.Commit, tag_map: dict[str, str]) -> str | None:
-    dt = estimate_deployed_at(commit, tag_map)
-    return dt.isoformat() if dt else None
 
 
 # ---------------------------------------------------------------------------
