@@ -316,6 +316,9 @@ def import_repo(
         return {"repo": repo_name, "imported": 0, "skipped": 0, "error": "not a git repo"}
 
     known = get_known_hashes(conn)
+    t0 = time.monotonic()
+
+    print(f"  [{repo_name}] reading git log …", end="", flush=True)
 
     # ── 2 parallel git calls + pipeline commit CSV write ─────────────────
     # name-status+meta finishes first (~0.5s); we immediately build commit_rows
@@ -355,7 +358,13 @@ def import_repo(
 
         commit_tmp = f_commit_csv.result()
 
+    skipped = len(meta) - len(commit_rows)
+    print(f" {len(meta)} commits ({skipped} already known)"
+          f" [{time.monotonic()-t0:.1f}s]")
+
     # build file rows (fast, ~0.07s)
+    print(f"  [{repo_name}] building file rows …", end="", flush=True)
+    t1 = time.monotonic()
     known_new = {r[0] for r in commit_rows}
     file_rows = []
     for h in known_new:
@@ -364,8 +373,12 @@ def import_repo(
         if len(stat_list) <= MAX_DIFF_FILES:
             for path, added, removed in stat_list:
                 file_rows.append((h, path, ns_map.get(path, "M"), added, removed))
+    print(f" {len(file_rows):,} file rows [{time.monotonic()-t1:.1f}s]")
 
     # ── bulk insert via CSV COPY ──────────────────────────────────────────
+    print(f"  [{repo_name}] inserting into DuckDB …", end="", flush=True)
+    t2 = time.monotonic()
+
     def _csv_copy_load(tmp: str, table: str, ignore: bool) -> None:
         escaped  = tmp.replace("\\", "/")
         modifier = "OR IGNORE " if ignore else ""
@@ -387,6 +400,8 @@ def import_repo(
 
     imported = len(commit_rows)
     skipped  = len(meta) - imported
+    print(f" done [{time.monotonic()-t2:.1f}s]  —  "
+          f"total {time.monotonic()-t0:.1f}s")
     return {"repo": repo_name, "imported": imported, "skipped": skipped}
 
 
