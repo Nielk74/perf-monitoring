@@ -66,7 +66,7 @@ export default function AdoptionVelocity() {
               {features.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
             <select className="select" value={days} onChange={e => setDays(+e.target.value)}>
-              {[90, 180, 365].map(v => <option key={v} value={v}>Last {v}d</option>)}
+              {[30, 60, 90, 180, 365].map(v => <option key={v} value={v}>Last {v}d</option>)}
             </select>
           </div>
         }

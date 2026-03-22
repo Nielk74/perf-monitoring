@@ -59,7 +59,7 @@ export default function EnvironmentalFingerprint() {
               {featureTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <select className="select" value={days} onChange={e => setDays(+e.target.value)}>
-              {[14, 30, 60, 90].map(v => <option key={v} value={v}>Last {v}d</option>)}
+              {[14, 30, 60, 90, 180, 365].map(v => <option key={v} value={v}>Last {v}d</option>)}
             </select>
           </div>
         }

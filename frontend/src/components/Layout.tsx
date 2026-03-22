@@ -30,6 +30,13 @@ const NAV: NavItem[] = [
     </svg>,
   },
   {
+    path: '/feature-inspector', label: 'Feature Inspector', tag: '',
+    icon: <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5">
+      <polyline points="1,12 5,7 9,9 15,3"/><circle cx="15" cy="3" r="1.5" fill="currentColor" stroke="none"/>
+      <line x1="5" y1="14" x2="5" y2="7"/><line x1="9" y1="14" x2="9" y2="9"/><line x1="15" y1="14" x2="15" y2="3"/>
+    </svg>,
+  },
+  {
     path: '/blast-radius', label: 'Blast Radius', tag: '02',
     icon: <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5">
       <circle cx="8" cy="8" r="2.5"/><line x1="8" y1="1" x2="8" y2="4"/><line x1="8" y1="12" x2="8" y2="15"/>

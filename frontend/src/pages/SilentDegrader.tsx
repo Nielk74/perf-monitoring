@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { api, type DegraderItem } from '../api/client'
 import PageHeader from '../components/PageHeader'
 import Chart from '../components/Chart'
@@ -87,7 +88,7 @@ export default function SilentDegrader() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    {['Feature', 'Type', 'Slope', 'Avg ms', 'p95 ms'].map(h => (
+                    {['Feature', 'Type', 'Slope', 'Avg ms', 'p95 ms', ''].map(h => (
                       <th key={h} className="text-left py-2 pr-4 label">{h}</th>
                     ))}
                   </tr>
@@ -104,7 +105,16 @@ export default function SilentDegrader() {
                       <td className="py-2 pr-4 text-secondary text-xs">{row.feature_type}</td>
                       <td className="py-2 pr-4 font-mono text-down">+{row.weekly_slope_pct.toFixed(2)}%</td>
                       <td className="py-2 pr-4 font-mono text-primary">{row.mean_avg_ms?.toFixed(0)}</td>
-                      <td className="py-2 font-mono text-warn">{row.mean_p95_ms?.toFixed(0)}</td>
+                      <td className="py-2 pr-4 font-mono text-warn">{row.mean_p95_ms?.toFixed(0)}</td>
+                      <td className="py-2">
+                        <Link
+                          to={`/feature-inspector?feature=${encodeURIComponent(row.feature)}&days=90`}
+                          className="text-xs text-accent hover:underline whitespace-nowrap"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          Inspect →
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,19 +1,23 @@
 import ReactECharts from 'echarts-for-react'
+import { forwardRef } from 'react'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyOption = Record<string, any>
 
 interface ChartProps {
-  option: AnyOption
-  height?: number | string
+  option:    AnyOption
+  height?:   number | string
   className?: string
   onEvents?: Record<string, (params: unknown) => void>
 }
 
-export default function Chart({ option, height = 320, className = '', onEvents }: ChartProps) {
+const Chart = forwardRef<ReactECharts, ChartProps>(function Chart(
+  { option, height = 320, className = '', onEvents }, ref
+) {
   return (
     <ReactECharts
-      option={option}
+      ref={ref}
+      option={{ ...option, animation: false }}
       theme="star"
       style={{ height: typeof height === 'number' ? `${height}px` : height, width: '100%' }}
       className={className}
@@ -22,4 +26,6 @@ export default function Chart({ option, height = 320, className = '', onEvents }
       notMerge
     />
   )
-}
+})
+
+export default Chart

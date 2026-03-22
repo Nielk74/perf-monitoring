@@ -59,7 +59,7 @@ export default function FeatureSunset() {
         controls={
           <div className="flex items-center gap-2">
             <select className="select" value={days} onChange={e => setDays(+e.target.value)}>
-              {[60, 90, 180].map(v => <option key={v} value={v}>Last {v}d</option>)}
+              {[30, 60, 90, 180, 365].map(v => <option key={v} value={v}>Last {v}d</option>)}
             </select>
             <select className="select" value={decline} onChange={e => setDecline(+e.target.value)}>
               {[20, 30, 50, 70].map(v => <option key={v} value={v}>Decline ≥ {v}%</option>)}

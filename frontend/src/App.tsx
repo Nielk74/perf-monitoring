@@ -10,6 +10,7 @@ import FeatureSunset from './pages/FeatureSunset'
 import FrictionHeatmap from './pages/FrictionHeatmap'
 import WorkflowDiscovery from './pages/WorkflowDiscovery'
 import AdoptionVelocity from './pages/AdoptionVelocity'
+import FeatureInspector from './pages/FeatureInspector'
 import PeakPressure from './pages/PeakPressure'
 import AnomalyGuard from './pages/AnomalyGuard'
 
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/"                         element={<Home />} />
         <Route path="/explorer"                 element={<Explorer />} />
         <Route path="/silent-degrader"          element={<SilentDegrader />} />
+        <Route path="/feature-inspector"        element={<FeatureInspector />} />
         <Route path="/blast-radius"             element={<BlastRadius />} />
         <Route path="/environmental-fingerprint" element={<EnvironmentalFingerprint />} />
         <Route path="/impersonation-audit"      element={<ImpersonationAudit />} />

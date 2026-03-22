@@ -33,8 +33,42 @@ export interface FeatureMeta {
 }
 
 export interface Commit {
-  commit_hash: string; repo_name: string; tag: string | null
+  commit_hash: string; repo_name: string
   author_name: string; committed_at: string; deployed_at: string | null; message: string
+  files_changed: number; lines_added: number; lines_removed: number
+}
+
+export interface DeploymentNight {
+  deployed_date: string
+  commit_count: number
+  authors: string
+  files_changed: number
+  lines_added: number
+  lines_removed: number
+}
+
+export interface DeploymentDiff {
+  meta: { deployed_date: string; commit_count: number; file_count: number }
+  commits: Commit[]
+  files: DiffFile[]
+}
+
+export interface DeploymentSummary {
+  deployed_date: string
+  features_affected: number
+  worst_feature: string | null
+  worst_delta_pct: number | null
+}
+
+export interface TrendDay {
+  stat_date: string
+  event_count: number
+  p50_ms: number | null
+  p95_ms: number | null
+  p99_ms: number | null
+  avg_ms: number | null
+  distinct_users: number
+  distinct_workstations: number
 }
 
 // UC-01
@@ -54,6 +88,20 @@ export interface BlastItem {
   delta_avg_ms: number; delta_pct: number; z_score: number
 }
 export interface BlastResult { meta: Record<string, unknown>; data: BlastItem[] }
+
+export interface DiffFile {
+  file_path: string; change_type: string; lines_added: number; lines_removed: number
+}
+
+export interface HotFile {
+  file_path: string; regression_commits: number
+  total_churn_lines: number; total_lines_added: number; total_lines_removed: number
+}
+
+export interface AuthorImpact {
+  author_name: string; total_commits: number; regression_commits: number
+  regression_rate_pct: number; avg_max_delta_pct: number
+}
 
 // UC-03
 export interface OfficeRow {
@@ -135,12 +183,20 @@ export const api = {
   silentDegrader: (slope = 1.0, topN = 20) =>
     get<DegraderResult>('/api/analytics/silent-degrader', { slope_threshold_pct: slope, top_n: topN }),
   featureTrend: (feature: string, days = 56) =>
-    get<{ data: Record<string, unknown>[] }>('/api/analytics/silent-degrader/' + encodeURIComponent(feature) + '/trend', { days }),
+    get<{ meta: Record<string, unknown>; data: TrendDay[] }>('/api/analytics/silent-degrader/' + encodeURIComponent(feature) + '/trend', { days }),
+  deploymentSummaries: (fromDate: string, toDate: string, windowDays = 14, zThreshold = 2.0) =>
+    get<{ data: DeploymentSummary[] }>('/api/analytics/blast-radius/summaries', { from_date: fromDate, to_date: toDate, window_days: windowDays, z_threshold: zThreshold }),
 
   // UC-02
-  deployments: () => get<{ data: Commit[] }>('/api/analytics/blast-radius/deployments'),
-  blastRadius: (tag: string, windowDays = 14, zThreshold = 1.5) =>
-    get<BlastResult>('/api/analytics/blast-radius', { tag, window_days: windowDays, z_threshold: zThreshold }),
+  deployments: (limit = 180) => get<{ data: DeploymentNight[] }>('/api/analytics/blast-radius/deployments', { limit }),
+  blastRadius: (deployedDate: string, windowDays = 14, zThreshold = 1.5) =>
+    get<BlastResult>('/api/analytics/blast-radius', { deployed_date: deployedDate, window_days: windowDays, z_threshold: zThreshold }),
+  deploymentDiff: (deployedDate: string) =>
+    get<DeploymentDiff>('/api/analytics/blast-radius/' + encodeURIComponent(deployedDate) + '/diff'),
+  hotFiles: (windowDays = 14, regressionPct = 10) =>
+    get<{ meta: Record<string, unknown>; data: HotFile[] }>('/api/analytics/blast-radius/hot-files', { window_days: windowDays, regression_pct: regressionPct }),
+  authorImpact: (windowDays = 14, regressionPct = 10) =>
+    get<{ meta: Record<string, unknown>; data: AuthorImpact[] }>('/api/analytics/blast-radius/author-impact', { window_days: windowDays, regression_pct: regressionPct }),
 
   // UC-03
   envFingerprint: (days = 30, featureType?: string) =>

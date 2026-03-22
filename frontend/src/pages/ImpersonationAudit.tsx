@@ -52,7 +52,7 @@ export default function ImpersonationAudit() {
         description="All support sessions where SUPP_USER ≠ ASMD_USER. Full audit trail for compliance."
         controls={
           <select className="select" value={days} onChange={e => setDays(+e.target.value)}>
-            {[30, 60, 90, 180].map(v => <option key={v} value={v}>Last {v}d</option>)}
+            {[30, 60, 90, 180, 365].map(v => <option key={v} value={v}>Last {v}d</option>)}
           </select>
         }
       />

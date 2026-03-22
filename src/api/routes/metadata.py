@@ -85,15 +85,21 @@ def list_commits(
 ):
     cur = conn.execute("""
         SELECT
-            commit_hash,
-            repo_name,
-            tag,
-            author_name,
-            committed_at,
-            deployed_at,
-            message
-        FROM commits
-        ORDER BY committed_at DESC
+            c.commit_hash,
+            c.repo_name,
+            c.author_name,
+            c.committed_at,
+            c.deployed_at,
+            c.message,
+            COUNT(cf.file_path)                      AS files_changed,
+            COALESCE(SUM(cf.lines_added),   0)       AS lines_added,
+            COALESCE(SUM(cf.lines_removed), 0)       AS lines_removed
+        FROM commits c
+        LEFT JOIN commit_files cf ON cf.commit_hash = c.commit_hash
+        GROUP BY
+            c.commit_hash, c.repo_name, c.author_name,
+            c.committed_at, c.deployed_at, c.message
+        ORDER BY c.committed_at DESC
         LIMIT ?
     """, [limit])
     return rows(cur)

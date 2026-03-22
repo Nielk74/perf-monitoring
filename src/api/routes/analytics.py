@@ -59,40 +59,71 @@ def get_feature_trend(
 
 @router.get("/blast-radius/deployments")
 def list_deployments(
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=500),
     conn: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     return blast_radius.list_deployments(conn=conn, limit=limit)
 
 
+@router.get("/blast-radius/summaries")
+def get_deployment_summaries(
+    from_date: str = Query(..., description="Start date YYYY-MM-DD"),
+    to_date: str = Query(..., description="End date YYYY-MM-DD"),
+    window_days: int = Query(14, ge=3, le=60),
+    z_threshold: float = Query(2.0, ge=0.5),
+    conn: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    return blast_radius.get_deployment_summaries(
+        from_date=from_date, to_date=to_date,
+        conn=conn, window_days=window_days, z_threshold=z_threshold,
+    )
+
+
+@router.get("/blast-radius/hot-files")
+def get_hot_files(
+    window_days: int = Query(14, ge=3, le=90),
+    regression_pct: float = Query(10.0, ge=1.0),
+    top_n: int = Query(30, ge=1, le=100),
+    conn: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    return blast_radius.get_hot_files(
+        conn=conn, window_days=window_days, regression_pct=regression_pct, top_n=top_n
+    )
+
+
+@router.get("/blast-radius/author-impact")
+def get_author_impact(
+    window_days: int = Query(14, ge=3, le=90),
+    regression_pct: float = Query(10.0, ge=1.0),
+    top_n: int = Query(20, ge=1, le=100),
+    conn: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    return blast_radius.get_author_impact(
+        conn=conn, window_days=window_days, regression_pct=regression_pct, top_n=top_n
+    )
+
+
 @router.get("/blast-radius")
 def get_blast_radius(
-    tag: Optional[str] = Query(None, description="Git tag, e.g. v2.14.0"),
-    deployed_at: Optional[str] = Query(None, description="ISO date of deployment"),
+    deployed_date: str = Query(..., description="Deployment date YYYY-MM-DD"),
     window_days: int = Query(14, ge=3, le=90),
     z_threshold: float = Query(2.0, ge=0.5),
     conn: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    if not tag and not deployed_at:
-        raise HTTPException(400, detail="Provide either 'tag' or 'deployed_at'")
-
-    # Resolve tag → deployed_at
-    if tag and not deployed_at:
-        row = conn.execute("""
-            SELECT deployed_at FROM commits
-            WHERE tag = ? AND deployed_at IS NOT NULL
-            LIMIT 1
-        """, [tag]).fetchone()
-        if not row:
-            raise HTTPException(404, detail=f"Tag '{tag}' not found or has no deployed_at")
-        deployed_at = str(row[0])[:10]
-
     return blast_radius.get_blast_radius(
-        deployed_at=deployed_at,
+        deployed_date=deployed_date,
         conn=conn,
         window_days=window_days,
         z_threshold=z_threshold,
     )
+
+
+@router.get("/blast-radius/{deployed_date}/diff")
+def get_deployment_diff(
+    deployed_date: str,
+    conn: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    return blast_radius.get_deployment_diff(deployed_date=deployed_date, conn=conn)
 
 
 # ---------------------------------------------------------------------------

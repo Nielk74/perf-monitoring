@@ -49,7 +49,7 @@ class SqliteSource:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def fetch(self, high_water_mark: datetime, days_limit: int | None) -> Iterator[dict]:
+    def fetch(self, high_water_mark: datetime, days_limit: int | None, low_water_mark=None) -> Iterator[dict]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
 
@@ -69,7 +69,7 @@ class SqliteSource:
 
         conn.close()
 
-    def count(self, high_water_mark: datetime, days_limit: int | None) -> int:
+    def count(self, high_water_mark: datetime, days_limit: int | None, low_water_mark=None) -> int:
         conn = sqlite3.connect(self.db_path)
         cutoff = _cutoff_dt(days_limit)
         effective_hwm = max(high_water_mark, cutoff) if cutoff else high_water_mark

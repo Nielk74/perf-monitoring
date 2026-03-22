@@ -5,8 +5,8 @@ Walks configured Git repositories and imports commit metadata + file-change
 stats into DuckDB (commits, commit_files tables).
 
 Supports incremental import: stops walking when a commit hash is already
-in DuckDB. deployed_at is set to committed_at + 2h for tagged commits;
-NULL otherwise (can be populated later via CI hook or manual SQL).
+in DuckDB. deployed_at is set to committed_at + 1 day for all commits,
+reflecting the nightly deployment heuristic (code merged today ships overnight).
 
 Usage:
     python -m src.ingestion.git_importer                    # all repos from settings.yaml
@@ -81,15 +81,13 @@ def nearest_tag(repo: git.Repo, commit: git.Commit) -> str | None:
 # deployed_at heuristic
 # ---------------------------------------------------------------------------
 
-def estimate_deployed_at(commit: git.Commit, tag_map: dict[str, str]) -> datetime | None:
+def estimate_deployed_at(commit: git.Commit, tag_map: dict[str, str]) -> datetime:
     """
-    For tagged commits: deployed_at = committed_at + 2h (simulates CI pipeline lag).
-    For untagged commits: None (must be set manually or via /api/ingestion/deployment).
+    deployed_at = committed_at + 1 day (nightly deployment heuristic).
+    Code merged on day D ships in the overnight build and is live on day D+1.
     """
-    if commit.hexsha in tag_map:
-        committed = datetime.fromtimestamp(commit.committed_date, tz=timezone.utc)
-        return committed + timedelta(hours=2)
-    return None
+    committed = datetime.fromtimestamp(commit.committed_date, tz=timezone.utc)
+    return committed + timedelta(days=1)
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +362,7 @@ def import_repo(
                 continue
             committed_at = datetime.fromtimestamp(m["committed_ts"], tz=timezone.utc)
             tag          = m["tag"]
-            deployed_at  = (committed_at + timedelta(hours=2)).isoformat() if tag else None
+            deployed_at  = (committed_at + timedelta(days=1)).isoformat()
             commit_rows.append((
                 h, repo_name,
                 m["author_name"], m["author_email"],
@@ -456,18 +454,6 @@ if __name__ == "__main__":
 
     elapsed = time.monotonic() - t0
     print(f"\nDone in {elapsed:.1f}s")
-
-    # Show release commits (those with deployed_at set)
-    rows = conn.execute("""
-        SELECT tag, committed_at, deployed_at
-        FROM commits
-        WHERE deployed_at IS NOT NULL
-        ORDER BY committed_at
-    """).fetchall()
-    if rows:
-        print("\nTagged releases in DuckDB:")
-        for tag, committed, deployed in rows:
-            print(f"  {str(tag):10s}  committed {str(committed)[:10]}  deployed_at {str(deployed)[:16]}")
 
     conn.close()
     sys.exit(0)
